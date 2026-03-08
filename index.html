@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AURA — Intelligence Without Boundaries</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{font-family:'Inter',system-ui,sans-serif;background:#050510;color:#fff;
+  scroll-behavior:auto; /* Lenis handles smooth scroll */
+  overflow-x:hidden}
+body{background:#050510;overflow-x:hidden}
+
+/* ── Loading Screen ── */
+#loader{position:fixed;inset:0;z-index:9999;background:#050510;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  transition:opacity .8s ease,visibility .8s ease}
+#loader.hidden{opacity:0;visibility:hidden;pointer-events:none}
+#loader .bar-track{width:200px;height:2px;background:rgba(255,255,255,.1);border-radius:1px;overflow:hidden;margin-top:24px}
+#loader .bar-fill{height:100%;width:0%;background:linear-gradient(90deg,#6e7bff,#a78bfa);border-radius:1px;transition:width .3s ease}
+#loader p{font-size:11px;letter-spacing:4px;text-transform:uppercase;color:rgba(255,255,255,.4);margin-top:12px}
+
+/* ── Canvas ── */
+canvas#c{position:fixed;top:0;left:0;width:100%;height:100vh;z-index:1}
+
+/* ── Scroll Container ── */
+.scroll-container{position:relative;z-index:2;pointer-events:none}
+.section{min-height:200vh;display:flex;align-items:center;padding:0 8vw;position:relative}
+.section.hero-section{min-height:100vh;justify-content:center;text-align:center}
+.section.tall{min-height:250vh}
+.section.short{min-height:150vh}
+.section.finale{min-height:100vh;justify-content:center;text-align:center}
+
+/* ── Section Content ── */
+.section-content{max-width:480px;pointer-events:auto}
+.section-content.right{margin-left:auto}
+.section-content.centre{margin:0 auto;text-align:center}
+
+h1{font-size:clamp(48px,10vw,120px);font-weight:200;letter-spacing:-2px;
+  line-height:1;margin-bottom:16px;
+  background:linear-gradient(135deg,#fff 0%,rgba(255,255,255,.6) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+h2{font-size:clamp(28px,4vw,48px);font-weight:300;letter-spacing:-1px;
+  line-height:1.15;margin-bottom:16px;color:rgba(255,255,255,.9)}
+p{font-size:clamp(14px,1.6vw,18px);line-height:1.7;color:rgba(255,255,255,.5);
+  font-weight:300}
+.hero-sub{font-size:clamp(14px,1.8vw,20px);letter-spacing:6px;text-transform:uppercase;
+  color:rgba(255,255,255,.3);font-weight:300;margin-top:8px}
+.stat{font-size:clamp(36px,5vw,64px);font-weight:200;letter-spacing:-1px;
+  background:linear-gradient(135deg,#a78bfa,#6e7bff);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  margin-bottom:8px;line-height:1.1}
+.cta-text{font-size:clamp(11px,1.2vw,13px);letter-spacing:6px;text-transform:uppercase;
+  color:rgba(255,255,255,.25);margin-top:32px}
+
+/* ── 3D Labels ── */
+.label-3d{position:fixed;z-index:10;pointer-events:none;opacity:0;
+  transform:translate(-50%,-50%);transition:opacity .3s ease;white-space:nowrap}
+.label-3d .label-dot{width:6px;height:6px;background:#a78bfa;border-radius:50%;
+  margin:0 auto 6px;box-shadow:0 0 12px rgba(167,139,250,.6)}
+.label-3d .label-text{font-size:10px;letter-spacing:2px;text-transform:uppercase;
+  color:rgba(255,255,255,.7);text-align:center}
+
+/* ── Responsive ── */
+@media(max-width:768px){
+  .section{padding:0 6vw}
+  .section-content{max-width:100%}
+  .section-content.right{margin-left:0}
+}
+</style>
+</head>
+<body>
+
+<!-- Loading -->
+<div id="loader">
+  <p>Loading</p>
+  <div class="bar-track"><div class="bar-fill" id="loader-bar"></div></div>
+</div>
+
+<!-- Canvas -->
+<canvas id="c"></canvas>
+
+<!-- Scroll Sections -->
+<div class="scroll-container">
+
+  <!-- 0 — Hero -->
+  <section class="section hero-section" data-idx="0">
+    <div class="section-content centre" id="hero-content">
+      <h1>AURA</h1>
+      <p class="hero-sub">Intelligence without boundaries</p>
+    </div>
+  </section>
+
+  <!-- 1 — Shell -->
+  <section class="section tall" data-idx="1">
+    <div class="section-content">
+      <h2>Engineered from the inside out</h2>
+      <p>Aerospace-grade composite shell. Precision-moulded at 4.2mm at its thinnest point. Seamless. Unibody. Beautiful from every angle.</p>
+    </div>
+  </section>
+
+  <!-- 2 — Connectivity -->
+  <section class="section" data-idx="2">
+    <div class="section-content right">
+      <h2>Always connected</h2>
+      <p>24 distributed phased-array antennae wrap the perimeter. Dual linear haptic engines translate machine intelligence into a language your body understands.</p>
+    </div>
+  </section>
+
+  <!-- 3 — Power -->
+  <section class="section" data-idx="3">
+    <div class="section-content">
+      <div class="stat">72 hrs</div>
+      <h2>Continuous neural processing</h2>
+      <p>Graphene solid-state cell. 4,800 mAh in a form factor half the thickness of conventional lithium. Charges wirelessly in 18 minutes.</p>
+    </div>
+  </section>
+
+  <!-- 4 — Brain -->
+  <section class="section tall" data-idx="4">
+    <div class="section-content right">
+      <div class="stat">45 TOPS</div>
+      <h2>Neural Engine X1</h2>
+      <p>Purpose-built silicon. 45 trillion operations per second of dedicated neural inference. 32GB unified LPDDR5X. Processing that thinks alongside you.</p>
+    </div>
+  </section>
+
+  <!-- 5 — Senses -->
+  <section class="section" data-idx="5">
+    <div class="section-content">
+      <h2>See. Hear. Feel. Understand.</h2>
+      <p>48MP computational camera. 6-element beamforming microphone array. LiDAR depth engine. Spatial audio transducer. Twelve sensor modalities in concert.</p>
+    </div>
+  </section>
+
+  <!-- 6 — Full explode -->
+  <section class="section" data-idx="6">
+    <div class="section-content centre">
+      <h2>Every atom, intentional</h2>
+      <p>42 components. Zero compromise. Designed, tested, and refined across 847 prototypes until every micron earned its place.</p>
+    </div>
+  </section>
+
+  <!-- 7 — Reassemble -->
+  <section class="section finale" data-idx="7">
+    <div class="section-content centre">
+      <h2>The future has no screen</h2>
+      <p class="cta-text">Coming 2027</p>
+    </div>
+  </section>
+
+</div>
+
+<!-- Labels (positioned by JS) -->
+<div class="label-3d" id="lbl-antenna"><div class="label-dot"></div><div class="label-text">Phased Antenna Array</div></div>
+<div class="label-3d" id="lbl-hapticL"><div class="label-dot"></div><div class="label-text">Haptic Engine L</div></div>
+<div class="label-3d" id="lbl-hapticR"><div class="label-dot"></div><div class="label-text">Haptic Engine R</div></div>
+<div class="label-3d" id="lbl-battery"><div class="label-dot"></div><div class="label-text">Graphene Cell</div></div>
+<div class="label-3d" id="lbl-flex"><div class="label-dot"></div><div class="label-text">Flex Interconnect</div></div>
+<div class="label-3d" id="lbl-board"><div class="label-dot"></div><div class="label-text">Logic Board</div></div>
+<div class="label-3d" id="lbl-neural"><div class="label-dot"></div><div class="label-text">Neural Engine X1</div></div>
+<div class="label-3d" id="lbl-memory"><div class="label-dot"></div><div class="label-text">32GB LPDDR5X</div></div>
+<div class="label-3d" id="lbl-wireless"><div class="label-dot"></div><div class="label-text">5G + WiFi 7 + UWB</div></div>
+<div class="label-3d" id="lbl-thermal"><div class="label-dot"></div><div class="label-text">Vapour Chamber</div></div>
+<div class="label-3d" id="lbl-camera"><div class="label-dot"></div><div class="label-text">48MP Camera</div></div>
+<div class="label-3d" id="lbl-mic"><div class="label-dot"></div><div class="label-text">Mic Array</div></div>
+<div class="label-3d" id="lbl-speaker"><div class="label-dot"></div><div class="label-text">Spatial Audio</div></div>
+<div class="label-3d" id="lbl-lidar"><div class="label-dot"></div><div class="label-text">LiDAR Depth</div></div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.7/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.7/dist/ScrollTrigger.min.js"></script>
+<script src="https://unpkg.com/lenis@1.1.18/dist/lenis.min.js"></script>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
+
+/* ═══════════════════════════════════════════════════════════════
+   0.  GLOBALS
+   ═══════════════════════════════════════════════════════════════ */
+const { gsap: G, ScrollTrigger: ST } = window;
+G.registerPlugin(ST);
+
+let W = window.innerWidth, H = window.innerHeight;
+const isMobile = W < 768;
+const DPR = Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2);
+const canvas = document.getElementById('c');
+
+/* ═══════════════════════════════════════════════════════════════
+   1.  THREE.JS SCENE
+   ═══════════════════════════════════════════════════════════════ */
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x050510);
+scene.fog = new THREE.FogExp2(0x050510, 0.06);
+
+const camera = new THREE.PerspectiveCamera(40, W / H, 0.1, 100);
+camera.position.set(0, 0.3, 3.8);
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: !isMobile, alpha: false });
+renderer.setPixelRatio(DPR);
+renderer.setSize(W, H);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+
+/* ── Lighting ── */
+const keyLight = new THREE.DirectionalLight(0xfff5ee, 2.2);
+keyLight.position.set(3, 4, 5);
+scene.add(keyLight);
+
+const fillLight = new THREE.DirectionalLight(0xb0c4de, 0.8);
+fillLight.position.set(-4, 1, -3);
+scene.add(fillLight);
+
+const rimLight = new THREE.DirectionalLight(0xa78bfa, 1.0);
+rimLight.position.set(0, -2, -4);
+scene.add(rimLight);
+
+const ambientLight = new THREE.AmbientLight(0x1a1a3e, 0.4);
+scene.add(ambientLight);
+
+// Inner glow (starts off, intensifies when shell opens)
+const innerGlow = new THREE.PointLight(0x7c6dfa, 0, 3, 2);
+innerGlow.position.set(0, 0, 0);
+scene.add(innerGlow);
+
+/* ═══════════════════════════════════════════════════════════════
+   2.  GEOMETRY HELPERS
+   ═══════════════════════════════════════════════════════════════ */
+
+function sgnPow(base, exp) {
+  return Math.sign(base) * Math.pow(Math.abs(base), exp);
+}
+
+/**
+ * Superellipsoid half-shell.
+ * rx, ry, rz = radii (x-width, z-depth, y-height)
+ * e1 = latitude squareness, e2 = longitude squareness
+ * isTop: true = upper half (u: 0→π/2), false = lower half (u: -π/2→0)
+ */
+function createShellHalf(rx, ry, rz, e1, e2, isTop, segs = 64) {
+  const rows = Math.floor(segs / 2), cols = segs;
+  const uStart = isTop ? 0 : -Math.PI / 2;
+  const uEnd   = isTop ? Math.PI / 2 : 0;
+
+  const pos = [], nrm = [], uv = [], idx = [];
+
+  for (let i = 0; i <= rows; i++) {
+    const u = uStart + (uEnd - uStart) * (i / rows);
+    const cu = Math.cos(u), su = Math.sin(u);
+    for (let j = 0; j <= cols; j++) {
+      const v = -Math.PI + 2 * Math.PI * (j / cols);
+      const cv = Math.cos(v), sv = Math.sin(v);
+
+      const x = rx * sgnPow(cu, e1) * sgnPow(cv, e2);
+      const y = rz * sgnPow(su, e1);
+      const z = ry * sgnPow(cu, e1) * sgnPow(sv, e2);
+      pos.push(x, y, z);
+
+      let nx = sgnPow(cu, 2 - e1) * sgnPow(cv, 2 - e2) / rx;
+      let ny = sgnPow(su, 2 - e1) / rz;
+      let nz = sgnPow(cu, 2 - e1) * sgnPow(sv, 2 - e2) / ry;
+      const len = Math.hypot(nx, ny, nz) || 1;
+      nrm.push(nx / len, ny / len, nz / len);
+
+      uv.push(j / cols, i / rows);
+    }
+  }
+
+  for (let i = 0; i < rows; i++) {
+    for (let j = 0; j < cols; j++) {
+      const a = i * (cols + 1) + j;
+      const b = a + cols + 1;
+      idx.push(a, b, a + 1, b, b + 1, a + 1);
+    }
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  geo.setIndex(idx);
+  geo.computeVertexNormals(); // smooth out any artefacts
+  return geo;
+}
+
+/** Rounded rectangle extrusion */
+function roundedBoxGeo(w, h, d, r) {
+  const shape = new THREE.Shape();
+  const hw = w / 2, hh = h / 2;
+  r = Math.min(r, hw, hh);
+  shape.moveTo(-hw + r, -hh);
+  shape.lineTo(hw - r, -hh);
+  shape.quadraticCurveTo(hw, -hh, hw, -hh + r);
+  shape.lineTo(hw, hh - r);
+  shape.quadraticCurveTo(hw, hh, hw - r, hh);
+  shape.lineTo(-hw + r, hh);
+  shape.quadraticCurveTo(-hw, hh, -hw, hh - r);
+  shape.lineTo(-hw, -hh + r);
+  shape.quadraticCurveTo(-hw, -hh, -hw + r, -hh);
+
+  return new THREE.ExtrudeGeometry(shape, {
+    depth: d, bevelEnabled: true, bevelThickness: 0.008,
+    bevelSize: 0.008, bevelSegments: 3
+  });
+}
+
+/** Flex cable via TubeGeometry */
+function cableGeo(points, radius = 0.01) {
+  const curve = new THREE.CatmullRomCurve3(
+    points.map(p => new THREE.Vector3(p[0], p[1], p[2]))
+  );
+  return new THREE.TubeGeometry(curve, 48, radius, 8, false);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   3.  MATERIALS
+   ═══════════════════════════════════════════════════════════════ */
+const shellMat = new THREE.MeshPhysicalMaterial({
+  color: 0xeeeef2, roughness: 0.28, metalness: 0.08,
+  clearcoat: 0.6, clearcoatRoughness: 0.12, side: THREE.DoubleSide,
+});
+
+const pcbMat = new THREE.MeshStandardMaterial({
+  color: 0x0c3320, roughness: 0.7, metalness: 0.15
+});
+
+const chipMat = new THREE.MeshStandardMaterial({
+  color: 0x15152e, roughness: 0.25, metalness: 0.85
+});
+
+const chipTopMat = new THREE.MeshStandardMaterial({
+  color: 0x2a2a3e, roughness: 0.15, metalness: 0.9
+});
+
+const batteryMat = new THREE.MeshStandardMaterial({
+  color: 0xbbbcc5, roughness: 0.18, metalness: 0.92
+});
+
+const cableMat = new THREE.MeshStandardMaterial({
+  color: 0xe89030, roughness: 0.55, metalness: 0.25
+});
+
+const antennaMat = new THREE.MeshStandardMaterial({
+  color: 0xc8a84e, roughness: 0.2, metalness: 0.9
+});
+
+const hapticMat = new THREE.MeshStandardMaterial({
+  color: 0x888890, roughness: 0.15, metalness: 0.95
+});
+
+const cameraMat = new THREE.MeshStandardMaterial({
+  color: 0x222228, roughness: 0.35, metalness: 0.65
+});
+
+const lensMat = new THREE.MeshPhysicalMaterial({
+  color: 0x0a0a30, roughness: 0.02, metalness: 0.05,
+  transmission: 0.92, thickness: 0.3, ior: 1.8
+});
+
+const copperMat = new THREE.MeshStandardMaterial({
+  color: 0xb87333, roughness: 0.12, metalness: 0.95
+});
+
+const speakerMat = new THREE.MeshStandardMaterial({
+  color: 0x2a2a30, roughness: 0.5, metalness: 0.4
+});
+
+const goldTraceMat = new THREE.MeshStandardMaterial({
+  color: 0xdaa520, roughness: 0.15, metalness: 0.95
+});
+
+const glowMat = new THREE.MeshBasicMaterial({
+  color: 0x6e5dfa, transparent: true, opacity: 0
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   4.  BUILD THE DEVICE
+   ═══════════════════════════════════════════════════════════════ */
+const device = new THREE.Group();
+scene.add(device);
+
+// Track all animated parts for scroll-driven explode
+const parts = {};
+
+// Pod shape params — phone-sized, Apple Mouse style, symmetric bevel
+const RX = 0.72, RY = 0.42, RZ = 0.18;
+const E1 = 0.38, E2 = 0.52;
+const shellSegs = isMobile ? 48 : 72;
+
+// ── Shell ──
+parts.shellTop = new THREE.Mesh(createShellHalf(RX, RY, RZ, E1, E2, true, shellSegs), shellMat);
+parts.shellBottom = new THREE.Mesh(createShellHalf(RX, RY, RZ, E1, E2, false, shellSegs), shellMat);
+device.add(parts.shellTop, parts.shellBottom);
+
+// Shell rim (thin ring at equator)
+const rimGeo = new THREE.TorusGeometry(
+  (RX + RY) / 2 * 0.72, 0.006, 8, 72
+);
+parts.shellRimTop = new THREE.Mesh(rimGeo, hapticMat);
+parts.shellRimTop.rotation.x = Math.PI / 2;
+parts.shellRimBottom = parts.shellRimTop.clone();
+device.add(parts.shellRimTop, parts.shellRimBottom);
+
+// Inner glow sphere (emissive core)
+const glowGeo = new THREE.SphereGeometry(0.28, 32, 16);
+parts.innerGlowSphere = new THREE.Mesh(glowGeo, glowMat);
+device.add(parts.innerGlowSphere);
+
+// ── Antenna Array ──
+{
+  const antennaGroup = new THREE.Group();
+  const antennaCount = 24;
+  for (let i = 0; i < antennaCount; i++) {
+    const angle = (i / antennaCount) * Math.PI * 2;
+    const aRad = (RX + RY) / 2 * 0.68;
+    const stripGeo = new THREE.BoxGeometry(0.025, 0.008, 0.003);
+    const strip = new THREE.Mesh(stripGeo, antennaMat);
+    strip.position.set(Math.cos(angle) * aRad, 0, Math.sin(angle) * aRad);
+    strip.rotation.y = -angle;
+    antennaGroup.add(strip);
+  }
+  parts.antenna = antennaGroup;
+  device.add(antennaGroup);
+}
+
+// ── Haptic Engines ──
+{
+  const hapGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.06, 24);
+  parts.hapticL = new THREE.Mesh(hapGeo, hapticMat);
+  parts.hapticL.position.set(-0.45, 0, 0);
+  parts.hapticL.rotation.z = Math.PI / 2;
+
+  parts.hapticR = parts.hapticL.clone();
+  parts.hapticR.position.set(0.45, 0, 0);
+  device.add(parts.hapticL, parts.hapticR);
+}
+
+// ── Battery ──
+{
+  const batGeo = roundedBoxGeo(0.9, 0.55, 0.04, 0.06);
+  parts.battery = new THREE.Mesh(batGeo, batteryMat);
+  parts.battery.rotation.x = Math.PI / 2;
+  parts.battery.position.set(0, -0.04, 0);
+  device.add(parts.battery);
+}
+
+// ── Flex Cables ──
+{
+  parts.flexMain = new THREE.Mesh(
+    cableGeo([
+      [0.15, 0.02, 0], [0.3, 0.04, 0.05], [0.4, 0.02, 0.12],
+      [0.35, -0.01, 0.2], [0.2, -0.03, 0.15]
+    ], 0.008),
+    cableMat
+  );
+  parts.flexSensor = new THREE.Mesh(
+    cableGeo([
+      [-0.1, 0.01, 0.05], [-0.2, 0.03, 0.15], [-0.35, 0.02, 0.1],
+      [-0.32, 0, -0.05]
+    ], 0.006),
+    cableMat
+  );
+  device.add(parts.flexMain, parts.flexSensor);
+}
+
+// ── Logic Board (PCB) ──
+{
+  const boardGeo = roundedBoxGeo(0.7, 0.38, 0.015, 0.03);
+  parts.board = new THREE.Mesh(boardGeo, pcbMat);
+  parts.board.rotation.x = Math.PI / 2;
+  parts.board.position.set(0, 0.02, 0);
+  device.add(parts.board);
+
+  // Gold traces on the board
+  const traceGroup = new THREE.Group();
+  const traceW = [0.5, 0.35, 0.6, 0.28, 0.45];
+  const traceZ = [-0.1, -0.04, 0.02, 0.08, 0.13];
+  traceW.forEach((tw, i) => {
+    const tGeo = new THREE.BoxGeometry(tw, 0.001, 0.003);
+    const tr = new THREE.Mesh(tGeo, goldTraceMat);
+    tr.position.set((i % 2 ? 0.02 : -0.03), 0.03, traceZ[i]);
+    traceGroup.add(tr);
+  });
+  // Vertical traces
+  for (let i = 0; i < 4; i++) {
+    const tGeo = new THREE.BoxGeometry(0.003, 0.001, 0.2 + i * 0.04);
+    const tr = new THREE.Mesh(tGeo, goldTraceMat);
+    tr.position.set(-0.2 + i * 0.14, 0.03, 0.02);
+    traceGroup.add(tr);
+  }
+  parts.traces = traceGroup;
+  device.add(traceGroup);
+}
+
+// ── Neural Chip ──
+{
+  const chipGeo = roundedBoxGeo(0.12, 0.12, 0.018, 0.01);
+  const chipBase = new THREE.Mesh(chipGeo, chipMat);
+  chipBase.rotation.x = Math.PI / 2;
+
+  const topGeo = roundedBoxGeo(0.09, 0.09, 0.005, 0.008);
+  const chipTop = new THREE.Mesh(topGeo, chipTopMat);
+  chipTop.rotation.x = Math.PI / 2;
+  chipTop.position.y = 0.012;
+
+  const neuralGroup = new THREE.Group();
+  neuralGroup.add(chipBase, chipTop);
+  neuralGroup.position.set(-0.08, 0.04, -0.02);
+  parts.neural = neuralGroup;
+  device.add(neuralGroup);
+}
+
+// ── Memory Chip ──
+{
+  const memGeo = roundedBoxGeo(0.1, 0.06, 0.012, 0.006);
+  parts.memory = new THREE.Mesh(memGeo, chipMat);
+  parts.memory.rotation.x = Math.PI / 2;
+  parts.memory.position.set(0.12, 0.04, 0.06);
+  device.add(parts.memory);
+}
+
+// ── Wireless Module ──
+{
+  const wirGeo = roundedBoxGeo(0.07, 0.05, 0.01, 0.005);
+  parts.wireless = new THREE.Mesh(wirGeo, chipMat);
+  parts.wireless.rotation.x = Math.PI / 2;
+  parts.wireless.position.set(-0.22, 0.035, 0.1);
+  device.add(parts.wireless);
+}
+
+// ── Thermal / Heat Spreader ──
+{
+  const thermalGeo = roundedBoxGeo(0.16, 0.14, 0.006, 0.01);
+  parts.thermal = new THREE.Mesh(thermalGeo, copperMat);
+  parts.thermal.rotation.x = Math.PI / 2;
+  parts.thermal.position.set(-0.08, 0.065, -0.02);
+  device.add(parts.thermal);
+}
+
+// ── Camera Module ──
+{
+  const camGroup = new THREE.Group();
+  const housingGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.035, 32);
+  const housing = new THREE.Mesh(housingGeo, cameraMat);
+
+  const lensGeo = new THREE.SphereGeometry(0.028, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+  const lens = new THREE.Mesh(lensGeo, lensMat);
+  lens.position.y = 0.017;
+
+  const ringGeo = new THREE.TorusGeometry(0.038, 0.003, 8, 32);
+  const ring = new THREE.Mesh(ringGeo, hapticMat);
+  ring.rotation.x = Math.PI / 2;
+  ring.position.y = 0.017;
+
+  camGroup.add(housing, lens, ring);
+  camGroup.rotation.x = Math.PI / 2;
+  camGroup.position.set(0.25, 0.04, -0.08);
+  parts.camera = camGroup;
+  device.add(camGroup);
+}
+
+// ── Microphone Array ──
+{
+  const micGroup = new THREE.Group();
+  const micPositions = [
+    [0, 0], [0.018, 0.01], [-0.018, 0.01],
+    [0.018, -0.01], [-0.018, -0.01], [0, -0.02]
+  ];
+  micPositions.forEach(([x, z]) => {
+    const mGeo = new THREE.CylinderGeometry(0.006, 0.006, 0.015, 12);
+    const mic = new THREE.Mesh(mGeo, cameraMat);
+    mic.position.set(x, 0, z);
+    micGroup.add(mic);
+  });
+  micGroup.position.set(-0.2, 0.03, -0.12);
+  parts.mic = micGroup;
+  device.add(micGroup);
+}
+
+// ── Speaker ──
+{
+  const spkGroup = new THREE.Group();
+  const coneGeo = new THREE.CylinderGeometry(0.015, 0.035, 0.02, 24);
+  const cone = new THREE.Mesh(coneGeo, speakerMat);
+
+  const domeGeo = new THREE.SphereGeometry(0.015, 16, 8);
+  const dome = new THREE.Mesh(domeGeo, speakerMat);
+  dome.position.y = 0.01;
+
+  const magGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.015, 16);
+  const mag = new THREE.Mesh(magGeo, hapticMat);
+  mag.position.y = -0.018;
+
+  spkGroup.add(cone, dome, mag);
+  spkGroup.position.set(0.18, 0.03, 0.14);
+  parts.speaker = spkGroup;
+  device.add(spkGroup);
+}
+
+// ── LiDAR / Depth Sensor ──
+{
+  const lidarGroup = new THREE.Group();
+  // Emitter
+  const emGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.02, 16);
+  const emitter = new THREE.Mesh(emGeo, new THREE.MeshStandardMaterial({
+    color: 0x200020, roughness: 0.3, metalness: 0.5,
+    emissive: 0x3a0060, emissiveIntensity: 0.3
+  }));
+  // Receiver
+  const rcGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.018, 16);
+  const receiver = new THREE.Mesh(rcGeo, cameraMat);
+  receiver.position.x = 0.035;
+
+  lidarGroup.add(emitter, receiver);
+  lidarGroup.position.set(0.22, 0.04, 0.12);
+  parts.lidar = lidarGroup;
+  device.add(lidarGroup);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   5.  AMBIENT PARTICLES
+   ═══════════════════════════════════════════════════════════════ */
+{
+  const PCOUNT = isMobile ? 600 : 1800;
+  const pPos = new Float32Array(PCOUNT * 3);
+  const pSizes = new Float32Array(PCOUNT);
+  for (let i = 0; i < PCOUNT; i++) {
+    pPos[i * 3]     = (Math.random() - 0.5) * 12;
+    pPos[i * 3 + 1] = (Math.random() - 0.5) * 8;
+    pPos[i * 3 + 2] = (Math.random() - 0.5) * 12;
+    pSizes[i] = Math.random() * 2 + 0.5;
+  }
+  const pGeo = new THREE.BufferGeometry();
+  pGeo.setAttribute('position', new THREE.Float32BufferAttribute(pPos, 3));
+  pGeo.setAttribute('size', new THREE.Float32BufferAttribute(pSizes, 1));
+
+  const pMat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false,
+    uniforms: {
+      uTime: { value: 0 },
+      uOpacity: { value: 0.35 },
+      uColor: { value: new THREE.Color(0x8888cc) },
+    },
+    vertexShader: `
+      attribute float size;
+      uniform float uTime;
+      varying float vAlpha;
+      void main() {
+        vec3 p = position;
+        p.y += sin(uTime * 0.15 + position.x * 0.5) * 0.15;
+        p.x += cos(uTime * 0.1 + position.z * 0.3) * 0.1;
+        vec4 mv = modelViewMatrix * vec4(p, 1.0);
+        gl_Position = projectionMatrix * mv;
+        gl_PointSize = size * (200.0 / -mv.z);
+        vAlpha = smoothstep(12.0, 2.0, -mv.z);
+      }
+    `,
+    fragmentShader: `
+      uniform float uOpacity;
+      uniform vec3 uColor;
+      varying float vAlpha;
+      void main() {
+        float d = length(gl_PointCoord - 0.5);
+        if (d > 0.5) discard;
+        float a = smoothstep(0.5, 0.1, d) * uOpacity * vAlpha;
+        gl_FragColor = vec4(uColor, a);
+      }
+    `
+  });
+  const particleSystem = new THREE.Points(pGeo, pMat);
+  scene.add(particleSystem);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   6.  POST-PROCESSING
+   ═══════════════════════════════════════════════════════════════ */
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+
+const bloomPass = new UnrealBloomPass(
+  new THREE.Vector2(W, H),
+  isMobile ? 0.3 : 0.5,  // strength
+  0.6,                     // radius
+  0.7                      // threshold
+);
+composer.addPass(bloomPass);
+
+// Vignette
+const vignetteShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    uDarkness: { value: 0.6 },
+    uOffset: { value: 1.2 },
+  },
+  vertexShader: `varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform float uDarkness;
+    uniform float uOffset;
+    varying vec2 vUv;
+    void main(){
+      vec4 c=texture2D(tDiffuse,vUv);
+      float d=distance(vUv,vec2(0.5));
+      c.rgb*=smoothstep(0.8,uOffset*0.5,d*(uDarkness+uOffset));
+      gl_FragColor=c;
+    }
+  `
+};
+composer.addPass(new ShaderPass(vignetteShader));
+
+if (!isMobile) {
+  composer.addPass(new SMAAPass(W, H));
+}
+
+composer.addPass(new OutputPass());
+
+/* ═══════════════════════════════════════════════════════════════
+   7.  STORE ASSEMBLED (REST) POSITIONS
+   ═══════════════════════════════════════════════════════════════ */
+const restState = {};
+Object.entries(parts).forEach(([key, obj]) => {
+  restState[key] = {
+    px: obj.position.x, py: obj.position.y, pz: obj.position.z,
+    rx: obj.rotation.x, ry: obj.rotation.y, rz: obj.rotation.z,
+  };
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   8.  LABEL SYSTEM
+   ═══════════════════════════════════════════════════════════════ */
+const labelMap = {
+  antenna:  { el: document.getElementById('lbl-antenna'),  obj: parts.antenna },
+  hapticL:  { el: document.getElementById('lbl-hapticL'),  obj: parts.hapticL },
+  hapticR:  { el: document.getElementById('lbl-hapticR'),  obj: parts.hapticR },
+  battery:  { el: document.getElementById('lbl-battery'),  obj: parts.battery },
+  flex:     { el: document.getElementById('lbl-flex'),     obj: parts.flexMain },
+  board:    { el: document.getElementById('lbl-board'),    obj: parts.board },
+  neural:   { el: document.getElementById('lbl-neural'),   obj: parts.neural },
+  memory:   { el: document.getElementById('lbl-memory'),   obj: parts.memory },
+  wireless: { el: document.getElementById('lbl-wireless'), obj: parts.wireless },
+  thermal:  { el: document.getElementById('lbl-thermal'),  obj: parts.thermal },
+  camera:   { el: document.getElementById('lbl-camera'),   obj: parts.camera },
+  mic:      { el: document.getElementById('lbl-mic'),      obj: parts.mic },
+  speaker:  { el: document.getElementById('lbl-speaker'),  obj: parts.speaker },
+  lidar:    { el: document.getElementById('lbl-lidar'),    obj: parts.lidar },
+};
+
+const labelVisibility = {};
+Object.keys(labelMap).forEach(k => labelVisibility[k] = 0);
+
+const _projVec = new THREE.Vector3();
+function updateLabels() {
+  Object.entries(labelMap).forEach(([key, { el, obj }]) => {
+    const vis = labelVisibility[key] || 0;
+    if (vis < 0.01) { el.style.opacity = '0'; return; }
+
+    // Get world position
+    obj.updateWorldMatrix(true, false);
+    _projVec.setFromMatrixPosition(obj.matrixWorld);
+    _projVec.project(camera);
+
+    // Behind camera check
+    if (_projVec.z > 1) { el.style.opacity = '0'; return; }
+
+    const x = (_projVec.x * 0.5 + 0.5) * W;
+    const y = (-_projVec.y * 0.5 + 0.5) * H;
+    el.style.transform = `translate(${x}px, ${y - 20}px)`;
+    el.style.opacity = String(vis);
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   9.  SCROLL ANIMATIONS (GSAP)
+   ═══════════════════════════════════════════════════════════════ */
+
+// Scroll-tracked progress (0 → 1)
+let scrollProgress = 0;
+
+const masterTL = G.timeline({
+  scrollTrigger: {
+    trigger: '.scroll-container',
+    start: 'top top',
+    end: 'bottom bottom',
+    scrub: 1.5,
+    onUpdate: self => { scrollProgress = self.progress; },
+  }
+});
+
+// Helper: total timeline "units" = 100
+// Hero: 0-8  |  Shell: 8-22  |  Connect: 22-35  |  Power: 35-48
+// Brain: 48-65  |  Senses: 65-78  |  Full: 78-92  |  Reassemble: 92-100
+
+/* ── Camera choreography ── */
+masterTL
+  .to(camera.position, { x: 1.5, y: 0.6, z: 3.0, duration: 14, ease: 'power2.inOut' }, 8)
+  .to(camera.position, { x: 2.0, y: 0.4, z: 2.2, duration: 13, ease: 'power2.inOut' }, 22)
+  .to(camera.position, { x: -1.8, y: -0.3, z: 2.5, duration: 13, ease: 'power2.inOut' }, 35)
+  .to(camera.position, { x: 0.5, y: 1.5, z: 2.8, duration: 17, ease: 'power2.inOut' }, 48)
+  .to(camera.position, { x: 1.8, y: 0.3, z: 2.5, duration: 13, ease: 'power2.inOut' }, 65)
+  .to(camera.position, { x: 0, y: 0.6, z: 4.5, duration: 14, ease: 'power2.inOut' }, 78)
+  .to(camera.position, { x: 0, y: 0.3, z: 3.8, duration: 8, ease: 'power2.inOut' }, 92);
+
+/* ── Shell separates ── */
+masterTL
+  .to(parts.shellTop.position, { y: 0.8, duration: 12, ease: 'power3.inOut' }, 10)
+  .to(parts.shellBottom.position, { y: -0.8, duration: 12, ease: 'power3.inOut' }, 10)
+  .to(parts.shellRimTop.position, { y: 0.8, duration: 12, ease: 'power3.inOut' }, 10)
+  .to(parts.shellRimBottom.position, { y: -0.8, duration: 12, ease: 'power3.inOut' }, 10)
+  // Inner glow fades in
+  .to(innerGlow, { intensity: 3, duration: 8 }, 12)
+  .to(glowMat, { opacity: 0.15, duration: 8 }, 12);
+
+/* ── Layer 1 — Antenna + Haptics (section 2) ── */
+masterTL
+  .to(parts.antenna.position, { y: 0.5, duration: 10, ease: 'power2.out' }, 24)
+  .to(parts.antenna.rotation, { y: Math.PI * 0.5, duration: 10 }, 24)
+  .to(parts.hapticL.position, { x: -1.0, y: 0.1, z: 0.2, duration: 10, ease: 'power2.out' }, 26)
+  .to(parts.hapticR.position, { x: 1.0, y: 0.1, z: 0.2, duration: 10, ease: 'power2.out' }, 26)
+  // Labels
+  .to(labelVisibility, { antenna: 1, duration: 4 }, 27)
+  .to(labelVisibility, { hapticL: 1, hapticR: 1, duration: 4 }, 28);
+
+/* ── Layer 2 — Battery + Cables (section 3) ── */
+masterTL
+  .to(parts.battery.position, { y: -0.5, z: -0.6, duration: 10, ease: 'power2.out' }, 37)
+  .to(parts.battery.rotation, { z: 0.15, duration: 10 }, 37)
+  .to(parts.flexMain.position, { x: 0.5, y: 0.3, z: -0.4, duration: 10 }, 38)
+  .to(parts.flexSensor.position, { x: -0.4, y: 0.2, z: -0.35, duration: 10 }, 39)
+  // Labels
+  .to(labelVisibility, { battery: 1, flex: 1, duration: 4 }, 40)
+  // Fade previous labels
+  .to(labelVisibility, { antenna: 0.3, hapticL: 0.3, hapticR: 0.3, duration: 6 }, 38);
+
+/* ── Layer 3 — Brain (section 4) ── */
+masterTL
+  .to(parts.board.position, { y: 0.1, z: 0.15, duration: 10 }, 50)
+  .to(parts.traces.position, { y: 0.1, z: 0.15, duration: 10 }, 50)
+  .to(parts.neural.position, { x: -0.3, y: 0.55, z: 0.5, duration: 12, ease: 'power2.out' }, 52)
+  .to(parts.neural.rotation, { y: Math.PI * 0.25, duration: 12 }, 52)
+  .to(parts.memory.position, { x: 0.4, y: 0.45, z: 0.45, duration: 10 }, 53)
+  .to(parts.wireless.position, { x: -0.55, y: 0.35, z: 0.4, duration: 10 }, 54)
+  .to(parts.thermal.position, { x: -0.3, y: 0.75, z: 0.35, duration: 10 }, 51)
+  // Labels
+  .to(labelVisibility, { board: 1, neural: 1, memory: 1, wireless: 1, thermal: 1, duration: 5 }, 55)
+  .to(labelVisibility, { battery: 0.2, flex: 0.2, duration: 6 }, 52);
+
+/* ── Layer 4 — Senses (section 5) ── */
+masterTL
+  .to(parts.camera.position, { x: 0.7, y: 0.25, z: 0.6, duration: 10, ease: 'power2.out' }, 67)
+  .to(parts.camera.rotation, { x: Math.PI / 2, z: 0.3, duration: 10 }, 67)
+  .to(parts.mic.position, { x: -0.6, y: 0.15, z: 0.55, duration: 10 }, 68)
+  .to(parts.speaker.position, { x: 0.5, y: -0.2, z: 0.65, duration: 10 }, 69)
+  .to(parts.lidar.position, { x: 0.65, y: 0.5, z: -0.3, duration: 10 }, 68)
+  // Labels
+  .to(labelVisibility, { camera: 1, mic: 1, speaker: 1, lidar: 1, duration: 5 }, 70)
+  .to(labelVisibility, { board: 0.3, neural: 0.5, memory: 0.3, wireless: 0.2, thermal: 0.2, duration: 6 }, 68);
+
+/* ── Full Explode (section 6) — push everything further ── */
+masterTL
+  .to(parts.shellTop.position, { y: 1.6, duration: 10 }, 80)
+  .to(parts.shellBottom.position, { y: -1.6, duration: 10 }, 80)
+  .to(parts.shellRimTop.position, { y: 1.6, duration: 10 }, 80)
+  .to(parts.shellRimBottom.position, { y: -1.6, duration: 10 }, 80)
+  .to(parts.antenna.position, { y: 0.9, duration: 10 }, 80)
+  .to(parts.hapticL.position, { x: -1.4, duration: 10 }, 80)
+  .to(parts.hapticR.position, { x: 1.4, duration: 10 }, 80)
+  .to(parts.battery.position, { y: -0.9, z: -0.9, duration: 10 }, 80)
+  .to(parts.neural.position, { y: 0.85, duration: 10 }, 80)
+  .to(parts.thermal.position, { y: 1.05, duration: 10 }, 80)
+  .to(parts.camera.position, { x: 1.0, z: 0.85, duration: 10 }, 80)
+  .to(parts.lidar.position, { x: 0.9, y: 0.75, duration: 10 }, 80)
+  // All labels visible
+  .to(labelVisibility, {
+    antenna: 1, hapticL: 0.7, hapticR: 0.7, battery: 1, flex: 0.7,
+    board: 1, neural: 1, memory: 1, wireless: 0.7, thermal: 0.8,
+    camera: 1, mic: 0.8, speaker: 0.8, lidar: 1, duration: 6
+  }, 82);
+
+/* ── Reassemble (section 7) ── */
+const reassembleTarget = {};
+Object.entries(parts).forEach(([key, obj]) => {
+  if (key === 'innerGlowSphere') return;
+  reassembleTarget[key] = { x: restState[key].px, y: restState[key].py, z: restState[key].pz };
+});
+
+Object.entries(parts).forEach(([key, obj]) => {
+  if (key === 'innerGlowSphere' || key === 'traces') return;
+  masterTL.to(obj.position, {
+    x: restState[key].px, y: restState[key].py, z: restState[key].pz,
+    duration: 8, ease: 'power3.inOut'
+  }, 92);
+  masterTL.to(obj.rotation, {
+    x: restState[key].rx, y: restState[key].ry, z: restState[key].rz,
+    duration: 8, ease: 'power3.inOut'
+  }, 92);
+});
+// Traces follow board
+masterTL.to(parts.traces.position, {
+  x: restState.traces.px, y: restState.traces.py, z: restState.traces.pz,
+  duration: 8, ease: 'power3.inOut'
+}, 92);
+
+// Glow fades
+masterTL
+  .to(innerGlow, { intensity: 0, duration: 6 }, 93)
+  .to(glowMat, { opacity: 0, duration: 6 }, 93);
+
+// All labels fade
+masterTL.to(labelVisibility, {
+  antenna: 0, hapticL: 0, hapticR: 0, battery: 0, flex: 0,
+  board: 0, neural: 0, memory: 0, wireless: 0, thermal: 0,
+  camera: 0, mic: 0, speaker: 0, lidar: 0, duration: 5
+}, 93);
+
+/* ── Text section animations ── */
+document.querySelectorAll('.section-content').forEach((el) => {
+  G.fromTo(el,
+    { opacity: 0, y: 60 },
+    {
+      opacity: 1, y: 0, duration: 1, ease: 'power2.out',
+      scrollTrigger: {
+        trigger: el, start: 'top 80%', end: 'top 30%',
+        scrub: 1, toggleActions: 'play none none reverse',
+      }
+    }
+  );
+  // Fade out as you scroll past
+  G.to(el, {
+    opacity: 0, y: -40,
+    scrollTrigger: {
+      trigger: el, start: 'bottom 60%', end: 'bottom 20%',
+      scrub: 1,
+    }
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   10.  SMOOTH SCROLL (LENIS)
+   ═══════════════════════════════════════════════════════════════ */
+const lenis = new window.Lenis({
+  duration: 1.4,
+  easing: t => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+  touchMultiplier: 1.5,
+});
+
+lenis.on('scroll', ST.update);
+G.ticker.add((time) => { lenis.raf(time * 1000); });
+G.ticker.lagSmoothing(0);
+
+/* ═══════════════════════════════════════════════════════════════
+   11.  BACKGROUND GRADIENT SHIFT
+   ═══════════════════════════════════════════════════════════════ */
+const bgColors = [
+  new THREE.Color(0x050510), // hero - deep night
+  new THREE.Color(0x080818), // shell - slightly lighter
+  new THREE.Color(0x060612), // connect
+  new THREE.Color(0x0a0815), // power
+  new THREE.Color(0x0c0a18), // brain - warmer
+  new THREE.Color(0x080814), // senses
+  new THREE.Color(0x0a0a1a), // full explode
+  new THREE.Color(0x050510), // reassemble
+];
+
+function lerpBgColor(progress) {
+  const idx = progress * (bgColors.length - 1);
+  const lo = Math.floor(idx);
+  const hi = Math.min(lo + 1, bgColors.length - 1);
+  const t = idx - lo;
+  const c = bgColors[lo].clone().lerp(bgColors[hi], t);
+  scene.background.copy(c);
+  scene.fog.color.copy(c);
+  document.body.style.backgroundColor = `#${c.getHexString()}`;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   12.  SLOW IDLE ROTATION (DEVICE)
+   ═══════════════════════════════════════════════════════════════ */
+let idleRotY = 0;
+
+/* ═══════════════════════════════════════════════════════════════
+   13.  ANIMATION LOOP
+   ═══════════════════════════════════════════════════════════════ */
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = clock.getDelta();
+  const t = clock.getElapsedTime();
+
+  // Subtle device rotation (slows during explode)
+  const rotSpeed = scrollProgress < 0.08 ? 0.15 :
+                   scrollProgress > 0.92 ? 0.15 : 0.04;
+  idleRotY += rotSpeed * dt;
+  device.rotation.y = idleRotY;
+
+  // Camera always looks at device centre
+  camera.lookAt(0, 0, 0);
+
+  // Background colour
+  lerpBgColor(scrollProgress);
+
+  // Particle time
+  const pMat = scene.children.find(c => c instanceof THREE.Points)?.material;
+  if (pMat) pMat.uniforms.uTime.value = t;
+
+  // Update labels
+  updateLabels();
+
+  // Render
+  composer.render();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   14.  RESIZE
+   ═══════════════════════════════════════════════════════════════ */
+window.addEventListener('resize', () => {
+  W = window.innerWidth;
+  H = window.innerHeight;
+  camera.aspect = W / H;
+  camera.updateProjectionMatrix();
+  renderer.setSize(W, H);
+  composer.setSize(W, H);
+  bloomPass.resolution.set(W, H);
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   15.  LOADING
+   ═══════════════════════════════════════════════════════════════ */
+const loaderEl = document.getElementById('loader');
+const loaderBar = document.getElementById('loader-bar');
+
+// Simulate loading (we're procedural so it's fast)
+let loadProgress = 0;
+function tickLoader() {
+  loadProgress += (100 - loadProgress) * 0.08;
+  loaderBar.style.width = loadProgress + '%';
+  if (loadProgress < 99) {
+    requestAnimationFrame(tickLoader);
+  } else {
+    loaderBar.style.width = '100%';
+    setTimeout(() => {
+      loaderEl.classList.add('hidden');
+      animate();
+    }, 400);
+  }
+}
+tickLoader();
+
+</script>
+</body>
+</html>
