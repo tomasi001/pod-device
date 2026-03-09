@@ -662,7 +662,7 @@ device.add(boardAssembly);
   }
   smdMesh.instanceMatrix.needsUpdate = true;
   parts.smdComponents = smdMesh;
-  boardAssembly.add(smdMesh);
+  device.add(smdMesh);
 }
 
 // ── Phase 4A — SMD Resistors (InstancedMesh) ──
@@ -683,7 +683,7 @@ device.add(boardAssembly);
   }
   resMesh.instanceMatrix.needsUpdate = true;
   parts.resistors = resMesh;
-  boardAssembly.add(resMesh);
+  device.add(resMesh);
 }
 
 // ── Phase 4A — Solder Pads (InstancedMesh) ──
@@ -702,7 +702,7 @@ device.add(boardAssembly);
   }
   padMesh.instanceMatrix.needsUpdate = true;
   parts.solderPads = padMesh;
-  boardAssembly.add(padMesh);
+  device.add(padMesh);
 }
 
 // ── Neural Chip ──
@@ -740,7 +740,7 @@ device.add(boardAssembly);
   }
   bgaMesh.instanceMatrix.needsUpdate = true;
   parts.bgaPads = bgaMesh;
-  boardAssembly.add(bgaMesh);
+  device.add(bgaMesh);
 }
 
 // ── Memory Chip ──
