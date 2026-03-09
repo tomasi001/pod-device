@@ -1,1458 +1,959 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-GB">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AURA — Intelligence Without Boundaries</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Pod — The Future Has No Screen</title>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500&display=swap" rel="stylesheet"/>
+
 <style>
-*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-html{font-family:'Inter',system-ui,sans-serif;background:#050510;color:#fff;
-  scroll-behavior:auto;overflow-x:hidden}
-body{background:#050510;overflow-x:hidden}
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
-/* ── Loading Screen ── */
-#loader{position:fixed;inset:0;z-index:9999;background:#050510;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  transition:opacity .8s ease,visibility .8s ease}
-#loader.hidden{opacity:0;visibility:hidden;pointer-events:none}
-#loader canvas{width:160px;height:160px;margin-bottom:16px}
-#loader .bar-track{width:200px;height:2px;background:rgba(255,255,255,.1);border-radius:1px;overflow:hidden;margin-top:16px}
-#loader .bar-fill{height:100%;width:0%;background:linear-gradient(90deg,#6e7bff,#a78bfa);border-radius:1px;transition:width .3s ease}
-#loader p{font-size:11px;letter-spacing:4px;text-transform:uppercase;color:rgba(255,255,255,.4);margin-top:12px}
+  :root {
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --accent: #6ec6ff;
+    --warm: #ffd6a0;
+    --muted: rgba(255,255,255,0.45);
+  }
 
-/* ── Canvas ── */
-canvas#c{position:fixed;top:0;left:0;width:100%;height:100vh;z-index:1}
+  html, body {
+    font-family: var(--font);
+    background: #050508;
+    color: #fff;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
 
-/* ── Scroll Container ── */
-.scroll-container{position:relative;z-index:2;pointer-events:none}
-.section{min-height:200vh;display:flex;align-items:center;padding:0 8vw;position:relative}
-.section.hero-section{min-height:100vh;justify-content:center;text-align:center}
-.section.tall{min-height:250vh}
-.section.short{min-height:150vh}
-.section.finale{min-height:100vh;justify-content:center;text-align:center}
+  #loader {
+    position: fixed; inset: 0; z-index: 1000;
+    background: #050508;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    transition: opacity 0.6s ease;
+  }
+  #loader.hidden { opacity: 0; pointer-events: none; }
+  #loader canvas { width: 180px; height: 180px; }
+  #loader p {
+    margin-top: 24px;
+    font-weight: 300; font-size: 14px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+  }
 
-/* ── Section Content ── */
-.section-content{max-width:480px;pointer-events:auto}
-.section-content.right{margin-left:auto}
-.section-content.centre{margin:0 auto;text-align:center}
+  #webgl { position: fixed; inset: 0; z-index: 1; }
 
-h1{font-size:clamp(48px,10vw,120px);font-weight:200;letter-spacing:-2px;
-  line-height:1;margin-bottom:16px;
-  background:linear-gradient(135deg,#fff 0%,rgba(255,255,255,.6) 100%);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-h2{font-size:clamp(28px,4vw,48px);font-weight:300;letter-spacing:-1px;
-  line-height:1.15;margin-bottom:16px;color:rgba(255,255,255,.9)}
-p{font-size:clamp(14px,1.6vw,18px);line-height:1.7;color:rgba(255,255,255,.5);
-  font-weight:300}
-.hero-sub{font-size:clamp(14px,1.8vw,20px);letter-spacing:6px;text-transform:uppercase;
-  color:rgba(255,255,255,.3);font-weight:300;margin-top:8px}
-.stat{font-size:clamp(36px,5vw,64px);font-weight:200;letter-spacing:-1px;
-  background:linear-gradient(135deg,#a78bfa,#6e7bff);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-  margin-bottom:8px;line-height:1.1}
-.cta-text{font-size:clamp(11px,1.2vw,13px);letter-spacing:6px;text-transform:uppercase;
-  color:rgba(255,255,255,.25);margin-top:32px}
+  #scroll-content {
+    position: relative; z-index: 2;
+    pointer-events: none;
+  }
 
-/* ── 3D Labels ── */
-.label-3d{position:fixed;z-index:10;pointer-events:none;opacity:0;
-  transform:translate(-50%,-50%);transition:opacity .3s ease;white-space:nowrap}
-.label-3d .label-dot{width:6px;height:6px;background:#a78bfa;border-radius:50%;
-  margin:0 auto 6px;box-shadow:0 0 12px rgba(167,139,250,.6)}
-.label-3d .label-text{font-size:10px;letter-spacing:2px;text-transform:uppercase;
-  color:rgba(255,255,255,.7);text-align:center}
+  .section {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0 8vw;
+  }
+  .section-inner { max-width: 520px; pointer-events: auto; }
+  .section h2 {
+    font-weight: 200; font-size: clamp(2rem, 5vw, 3.8rem);
+    line-height: 1.1; letter-spacing: -0.02em;
+    opacity: 0; transform: translateY(40px);
+  }
+  .section p {
+    font-weight: 300; font-size: clamp(0.9rem, 1.4vw, 1.1rem);
+    line-height: 1.6; color: var(--muted);
+    margin-top: 16px; opacity: 0; transform: translateY(30px);
+  }
 
-/* ── Scroll Progress ── */
-#scroll-progress{position:fixed;top:0;right:0;width:2px;height:100vh;z-index:20;pointer-events:none}
-#scroll-fill{width:100%;height:0%;background:linear-gradient(180deg,#6e7bff,#a78bfa);transition:height .1s ease}
+  #s-hero       { height: 100vh; }
+  #s-shell      { height: 250vh; }
+  #s-connect    { height: 200vh; }
+  #s-power      { height: 200vh; }
+  #s-compute    { height: 250vh; }
+  #s-sensors    { height: 200vh; }
+  #s-exploded   { height: 200vh; }
+  #s-reassemble { height: 200vh; }
 
-/* ── Responsive ── */
-@media(max-width:768px){
-  .section{padding:0 6vw}
-  .section-content{max-width:100%}
-  .section-content.right{margin-left:0}
-}
+  #progress {
+    position: fixed; right: 12px; top: 50%;
+    transform: translateY(-50%);
+    width: 3px; height: 120px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 2px; z-index: 50; overflow: hidden;
+  }
+  #progress-fill {
+    width: 100%; height: 0%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: height 0.1s linear;
+  }
+
+  #labels-overlay {
+    position: fixed; inset: 0; z-index: 10;
+    pointer-events: none; overflow: hidden;
+  }
+  .label-3d {
+    position: absolute; font-family: var(--font);
+    font-weight: 400; font-size: 11px;
+    letter-spacing: 0.06em;
+    color: rgba(255,255,255,0.8);
+    white-space: nowrap; opacity: 0;
+    transition: opacity 0.3s ease;
+    text-transform: uppercase;
+  }
+  .label-3d::before {
+    content: ''; position: absolute;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent);
+    left: -12px; top: 50%; transform: translateY(-50%);
+  }
+
+  #connector-svg {
+    position: fixed; inset: 0; z-index: 9;
+    pointer-events: none; width: 100%; height: 100%;
+  }
+  #connector-svg line {
+    stroke: rgba(110,198,255,0.25);
+    stroke-width: 1; stroke-dasharray: 4 3;
+  }
+
+  #final-title {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 20; pointer-events: none; opacity: 0;
+  }
+  #final-title h1 {
+    font-weight: 200; font-size: clamp(2rem, 5vw, 4rem);
+    letter-spacing: -0.02em; text-align: center;
+  }
 </style>
 </head>
 <body>
 
-<!-- Loading -->
 <div id="loader">
-  <canvas id="loader-canvas" width="160" height="160"></canvas>
-  <p>Loading</p>
-  <div class="bar-track"><div class="bar-fill" id="loader-bar"></div></div>
+  <canvas id="loader-canvas" width="180" height="180"></canvas>
+  <p>Initialising experience&hellip;</p>
 </div>
 
-<!-- Canvas -->
-<canvas id="c"></canvas>
+<canvas id="webgl"></canvas>
 
-<!-- Scroll Progress -->
-<div id="scroll-progress"><div id="scroll-fill"></div></div>
+<div id="progress"><div id="progress-fill"></div></div>
 
-<!-- SVG Label Lines -->
-<svg id="label-lines" style="position:fixed;inset:0;z-index:9;pointer-events:none;width:100%;height:100%"></svg>
+<div id="labels-overlay"></div>
+<svg id="connector-svg" xmlns="http://www.w3.org/2000/svg"></svg>
 
-<!-- Scroll Sections -->
-<div class="scroll-container">
+<div id="final-title"><h1>The future has no screen.</h1></div>
 
-  <!-- 0 — Hero -->
-  <section class="section hero-section" data-idx="0">
-    <div class="section-content centre" id="hero-content">
-      <h1>AURA</h1>
-      <p class="hero-sub">Intelligence without boundaries</p>
+<div id="scroll-content">
+  <div class="section" id="s-hero">
+    <div class="section-inner">
+      <h2>Pod</h2>
+      <p>A screenless AI companion. Pure intelligence, held in your hand.</p>
     </div>
-  </section>
-
-  <!-- 1 — Shell -->
-  <section class="section tall" data-idx="1">
-    <div class="section-content">
-      <h2>Engineered from the inside out</h2>
-      <p>Aerospace-grade composite shell. Precision-moulded at 4.2mm at its thinnest point. Seamless. Unibody. Beautiful from every angle.</p>
+  </div>
+  <div class="section" id="s-shell">
+    <div class="section-inner">
+      <h2>Precision<br/>Engineered</h2>
+      <p>A ceramic composite shell, split along the equator. Every curve shaped to disappear in your palm.</p>
     </div>
-  </section>
-
-  <!-- 2 — Connectivity -->
-  <section class="section" data-idx="2">
-    <div class="section-content right">
-      <h2>Always connected</h2>
-      <p>24 distributed phased-array antennae wrap the perimeter. Dual linear haptic engines translate machine intelligence into a language your body understands.</p>
+  </div>
+  <div class="section" id="s-connect">
+    <div class="section-inner">
+      <h2>Always<br/>Connected</h2>
+      <p>A phased antenna array and dual haptic engines keep you in touch with the world — without a display.</p>
     </div>
-  </section>
-
-  <!-- 3 — Power -->
-  <section class="section" data-idx="3">
-    <div class="section-content">
-      <div class="stat">72 hrs</div>
-      <h2>Continuous neural processing</h2>
-      <p>Graphene solid-state cell. 4,800 mAh in a form factor half the thickness of conventional lithium. Charges wirelessly in 18 minutes.</p>
+  </div>
+  <div class="section" id="s-power">
+    <div class="section-inner">
+      <h2>All-Day<br/>Power</h2>
+      <p>A solid-state battery delivers relentless energy. Flex cables route power through every subsystem.</p>
     </div>
-  </section>
-
-  <!-- 4 — Brain -->
-  <section class="section tall" data-idx="4">
-    <div class="section-content right">
-      <div class="stat">45 TOPS</div>
-      <h2>Neural Engine X1</h2>
-      <p>Purpose-built silicon. 45 trillion operations per second of dedicated neural inference. 32GB unified LPDDR5X. Processing that thinks alongside you.</p>
+  </div>
+  <div class="section" id="s-compute">
+    <div class="section-inner">
+      <h2>The Brain</h2>
+      <p>Custom silicon. Billions of transistors orchestrating intelligence at the edge.</p>
     </div>
-  </section>
-
-  <!-- 5 — Senses -->
-  <section class="section" data-idx="5">
-    <div class="section-content">
-      <h2>See. Hear. Feel. Understand.</h2>
-      <p>48MP computational camera. 6-element beamforming microphone array. LiDAR depth engine. Spatial audio transducer. Twelve sensor modalities in concert.</p>
+  </div>
+  <div class="section" id="s-sensors">
+    <div class="section-inner">
+      <h2>Senses</h2>
+      <p>Camera, depth sensor, microphone array, speaker — the device perceives its surroundings in three dimensions.</p>
     </div>
-  </section>
-
-  <!-- 6 — Full explode -->
-  <section class="section" data-idx="6">
-    <div class="section-content centre">
-      <h2>Every atom, intentional</h2>
-      <p>42 components. Zero compromise. Designed, tested, and refined across 847 prototypes until every micron earned its place.</p>
+  </div>
+  <div class="section" id="s-exploded">
+    <div class="section-inner">
+      <h2>Every Detail</h2>
+      <p>Seventeen subsystems. Zero compromises. An architecture built for the post-screen era.</p>
     </div>
-  </section>
-
-  <!-- 7 — Reassemble -->
-  <section class="section finale" data-idx="7">
-    <div class="section-content centre">
-      <h2>The future has no screen</h2>
-      <p class="cta-text">Coming 2027</p>
-    </div>
-  </section>
-
+  </div>
+  <div class="section" id="s-reassemble">
+    <div class="section-inner"></div>
+  </div>
 </div>
-
-<!-- Labels (positioned by JS) -->
-<div class="label-3d" id="lbl-antenna"><div class="label-dot"></div><div class="label-text">Phased Antenna Array</div></div>
-<div class="label-3d" id="lbl-hapticL"><div class="label-dot"></div><div class="label-text">Haptic Engine L</div></div>
-<div class="label-3d" id="lbl-hapticR"><div class="label-dot"></div><div class="label-text">Haptic Engine R</div></div>
-<div class="label-3d" id="lbl-battery"><div class="label-dot"></div><div class="label-text">Graphene Cell</div></div>
-<div class="label-3d" id="lbl-flex"><div class="label-dot"></div><div class="label-text">Flex Interconnect</div></div>
-<div class="label-3d" id="lbl-board"><div class="label-dot"></div><div class="label-text">Logic Board</div></div>
-<div class="label-3d" id="lbl-neural"><div class="label-dot"></div><div class="label-text">Neural Engine X1</div></div>
-<div class="label-3d" id="lbl-memory"><div class="label-dot"></div><div class="label-text">32GB LPDDR5X</div></div>
-<div class="label-3d" id="lbl-wireless"><div class="label-dot"></div><div class="label-text">5G + WiFi 7 + UWB</div></div>
-<div class="label-3d" id="lbl-thermal"><div class="label-dot"></div><div class="label-text">Vapour Chamber</div></div>
-<div class="label-3d" id="lbl-camera"><div class="label-dot"></div><div class="label-text">48MP Camera</div></div>
-<div class="label-3d" id="lbl-mic"><div class="label-dot"></div><div class="label-text">Mic Array</div></div>
-<div class="label-3d" id="lbl-speaker"><div class="label-dot"></div><div class="label-text">Spatial Audio</div></div>
-<div class="label-3d" id="lbl-lidar"><div class="label-dot"></div><div class="label-text">LiDAR Depth</div></div>
-
-<!-- Scripts -->
-<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.7/dist/gsap.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.7/dist/ScrollTrigger.min.js"></script>
-<script src="https://unpkg.com/lenis@1.1.18/dist/lenis.min.js"></script>
 
 <script type="importmap">
 {
   "imports": {
-    "three": "https://unpkg.com/three@0.170.0/build/three.module.js",
-    "three/addons/": "https://unpkg.com/three@0.170.0/examples/jsm/"
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
   }
 }
 </script>
 
 <script type="module">
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
-/* ═══════════════════════════════════════════════════════════════
-   0.  GLOBALS & QUALITY TIERS (Phase 10)
-   ═══════════════════════════════════════════════════════════════ */
-const { gsap: G, ScrollTrigger: ST } = window;
-G.registerPlugin(ST);
+/* ═══ GPU Tier Detection ═══ */
+let gpuTier = 'high';
+try {
+  const gl = document.createElement('canvas').getContext('webgl');
+  const dbg = gl && gl.getExtension('WEBGL_debug_renderer_info');
+  if (dbg) {
+    const r = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL).toLowerCase();
+    if (/mali|adreno\s*[1-5]|powervr|apple gpu|intel.*(u?hd|iris)/.test(r)) gpuTier = 'medium';
+    if (/mali-[gt][1-5]|adreno\s*[1-3]|sgx/.test(r)) gpuTier = 'low';
+  }
+} catch (_) {}
+const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+if (isMobile && gpuTier === 'high') gpuTier = 'medium';
 
-let W = window.innerWidth, H = window.innerHeight;
-const isMobile = W < 768;
-const DPR = Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2);
-const canvas = document.getElementById('c');
-
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: !isMobile, alpha: false });
-renderer.setPixelRatio(DPR);
-renderer.setSize(W, H);
-renderer.toneMapping = THREE.NeutralToneMapping; // Phase 3B — Khronos PBR Neutral
+/* ═══ Renderer ═══ */
+const canvas = document.getElementById('webgl');
+const renderer = new THREE.WebGLRenderer({
+  canvas, antialias: gpuTier === 'high',
+  powerPreference: 'high-performance', alpha: false,
+});
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, gpuTier === 'low' ? 1 : 2));
+renderer.toneMapping = THREE.NeutralToneMapping;
 renderer.toneMappingExposure = 1.0;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-// Phase 10A — Quality tiers based on GPU
-const QUALITY = (() => {
-  if (isMobile) return 'low';
-  const gl = renderer.getContext();
-  const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-  const gpu = debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : '';
-  if (/Intel|Mali|Adreno/i.test(gpu)) return 'medium';
-  return 'high';
-})();
-
-const shellSegs = QUALITY === 'low' ? 48 : QUALITY === 'medium' ? 64 : 72;
-const smdCount = QUALITY === 'low' ? 20 : QUALITY === 'medium' ? 60 : 120;
-const resCount = QUALITY === 'low' ? 15 : QUALITY === 'medium' ? 40 : 80;
-const padCount = QUALITY === 'low' ? 50 : QUALITY === 'medium' ? 120 : 200;
-const bgaGridSize = QUALITY === 'low' ? 5 : 8;
-// Particle counts — removed for clean version
-
-/* ═══════════════════════════════════════════════════════════════
-   1.  THREE.JS SCENE + LIGHTING (Phase 1)
-   ═══════════════════════════════════════════════════════════════ */
+/* ═══ Scene & Camera ═══ */
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x050510);
-scene.fog = new THREE.FogExp2(0x050510, 0.06);
-
-const camera = new THREE.PerspectiveCamera(40, W / H, 0.1, 100);
+scene.background = new THREE.Color(0x050508);
+const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.01, 100);
 camera.position.set(0, 0.3, 3.8);
 
-// Phase 1A — RoomEnvironment (procedural studio HDRI)
-const pmremGenerator = new THREE.PMREMGenerator(renderer);
-const envTexture = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
-scene.environment = envTexture;
-pmremGenerator.dispose();
+/* ═══ Procedural Environment Map ═══ */
+const pmremGen = new THREE.PMREMGenerator(renderer);
+pmremGen.compileEquirectangularShader();
+const roomScene = new RoomEnvironment();
+scene.environment = pmremGen.fromScene(roomScene, 0.04).texture;
+roomScene.dispose();
 
-// Phase 1A — RectAreaLights for product lighting
+/* ═══ Area Lights ═══ */
 RectAreaLightUniformsLib.init();
 
-const keyRect = new THREE.RectAreaLight(0xfff8f0, 8, 4, 4);
-keyRect.position.set(3, 4, 4);
-keyRect.lookAt(0, 0, 0);
-scene.add(keyRect);
+const keyLight = new THREE.RectAreaLight(0xffeedd, 8, 3, 3);
+keyLight.position.set(3, 4, 3); keyLight.lookAt(0, 0, 0);
+scene.add(keyLight);
 
-const fillRect = new THREE.RectAreaLight(0xb8c8e8, 3, 3, 3);
-fillRect.position.set(-4, 1, -2);
-fillRect.lookAt(0, 0, 0);
-scene.add(fillRect);
+const fillLight = new THREE.RectAreaLight(0xaaccff, 3, 2, 2);
+fillLight.position.set(-3, 1, 2); fillLight.lookAt(0, 0, 0);
+scene.add(fillLight);
 
-const rimRect = new THREE.RectAreaLight(0xa78bfa, 5, 1, 4);
-rimRect.position.set(0, -1, -4);
-rimRect.lookAt(0, 0, 0);
-scene.add(rimRect);
+const rimLight = new THREE.RectAreaLight(0x6ec6ff, 5, 1.5, 1.5);
+rimLight.position.set(0, -2, 3); rimLight.lookAt(0, 0, 0);
+scene.add(rimLight);
 
-// Inner glow — removed for clean version
+const innerGlow = new THREE.PointLight(0xffd6a0, 0, 3, 2);
+innerGlow.position.set(0, 0, 0);
+scene.add(innerGlow);
 
-/* ═══════════════════════════════════════════════════════════════
-   2.  GEOMETRY HELPERS
-   ═══════════════════════════════════════════════════════════════ */
+/* ═══ Materials ═══ */
+const mat = {
+  shell: new THREE.MeshPhysicalMaterial({
+    color: 0xe8e0d8, metalness: 0.05, roughness: 0.2,
+    clearcoat: 1.0, clearcoatRoughness: 0.05,
+    sheen: 1.0, sheenColor: new THREE.Color(0xddeeff), sheenRoughness: 0.3,
+    envMapIntensity: 1.2, side: THREE.DoubleSide,
+  }),
+  pcb: new THREE.MeshPhysicalMaterial({
+    color: 0x1a3a1a, metalness: 0.0, roughness: 0.4,
+    clearcoat: 0.6, clearcoatRoughness: 0.2, envMapIntensity: 0.8,
+  }),
+  gold: new THREE.MeshPhysicalMaterial({
+    color: 0xffd700, metalness: 1.0, roughness: 0.15, envMapIntensity: 1.5,
+  }),
+  copper: new THREE.MeshPhysicalMaterial({
+    color: 0xd4764e, metalness: 1.0, roughness: 0.25, envMapIntensity: 1.2,
+  }),
+  chip: new THREE.MeshPhysicalMaterial({
+    color: 0x111118, metalness: 0.85, roughness: 0.15,
+    iridescence: 1.0, iridescenceIOR: 1.8,
+    iridescenceThicknessRange: [200, 600], envMapIntensity: 1.3,
+  }),
+  battery: new THREE.MeshPhysicalMaterial({
+    color: 0xb0b0b8, metalness: 0.95, roughness: 0.35,
+    anisotropy: 0.8, anisotropyRotation: Math.PI / 2, envMapIntensity: 1.1,
+  }),
+  cable: new THREE.MeshPhysicalMaterial({
+    color: 0xf0a050, metalness: 0.1, roughness: 0.55,
+    sheen: 0.5, sheenColor: new THREE.Color(0xffcc88), sheenRoughness: 0.5,
+  }),
+  lens: new THREE.MeshPhysicalMaterial({
+    color: 0x222244, metalness: 0.0, roughness: 0.0,
+    transmission: 0.95, thickness: 0.3, ior: 1.8, dispersion: 0.3,
+    envMapIntensity: 1.5,
+  }),
+  steel: new THREE.MeshPhysicalMaterial({
+    color: 0x888890, metalness: 1.0, roughness: 0.2,
+    anisotropy: 0.6, envMapIntensity: 1.0,
+  }),
+  smdDark: new THREE.MeshPhysicalMaterial({
+    color: 0x222222, metalness: 0.5, roughness: 0.4, envMapIntensity: 0.8,
+  }),
+  smdBrown: new THREE.MeshPhysicalMaterial({
+    color: 0x553311, metalness: 0.3, roughness: 0.5, envMapIntensity: 0.7,
+  }),
+  antennaGold: new THREE.MeshPhysicalMaterial({
+    color: 0xeec850, metalness: 1.0, roughness: 0.2, envMapIntensity: 1.4,
+  }),
+  memory: new THREE.MeshPhysicalMaterial({
+    color: 0x0a0a12, metalness: 0.9, roughness: 0.1, envMapIntensity: 1.0,
+  }),
+  sensor: new THREE.MeshPhysicalMaterial({
+    color: 0x1a1a28, metalness: 0.7, roughness: 0.2, envMapIntensity: 1.0,
+  }),
+  speaker: new THREE.MeshPhysicalMaterial({
+    color: 0x333340, metalness: 0.6, roughness: 0.4, envMapIntensity: 0.9,
+  }),
+};
 
-function sgnPow(base, exp) {
-  return Math.sign(base) * Math.pow(Math.abs(base), exp);
-}
+const traceMatBase = mat.gold.clone();
+traceMatBase.emissive = new THREE.Color(0xffaa00);
+traceMatBase.emissiveIntensity = 0.0;
 
-function createShellHalf(rx, ry, rz, e1, e2, isTop, segs = 64) {
-  const rows = Math.floor(segs / 2), cols = segs;
-  const uStart = isTop ? 0 : -Math.PI / 2;
-  const uEnd   = isTop ? Math.PI / 2 : 0;
+/* ═══ Superellipsoid ═══ */
+function sgnPow(b, e) { return Math.sign(b) * Math.pow(Math.abs(b), e); }
+
+function makeSuperellipsoid(rx, ry, rz, e1, e2, segU, segV, clipY) {
   const pos = [], nrm = [], uv = [], idx = [];
-
-  for (let i = 0; i <= rows; i++) {
-    const u = uStart + (uEnd - uStart) * (i / rows);
-    const cu = Math.cos(u), su = Math.sin(u);
-    for (let j = 0; j <= cols; j++) {
-      const v = -Math.PI + 2 * Math.PI * (j / cols);
-      const cv = Math.cos(v), sv = Math.sin(v);
-      const x = rx * sgnPow(cu, e1) * sgnPow(cv, e2);
-      const y = rz * sgnPow(su, e1);
-      const z = ry * sgnPow(cu, e1) * sgnPow(sv, e2);
+  for (let j = 0; j <= segV; j++) {
+    const v = j / segV;
+    const phi = -Math.PI / 2 + Math.PI * v;
+    const cp = Math.cos(phi), sp = Math.sin(phi);
+    for (let i = 0; i <= segU; i++) {
+      const u = i / segU;
+      const theta = -Math.PI + 2 * Math.PI * u;
+      const ct = Math.cos(theta), st = Math.sin(theta);
+      const x = rx * sgnPow(cp, e1) * sgnPow(ct, e2);
+      const y = ry * sgnPow(sp, e1);
+      const z = rz * sgnPow(cp, e1) * sgnPow(st, e2);
+      const nx = sgnPow(cp, 2 - e1) * sgnPow(ct, 2 - e2) / rx;
+      const ny = sgnPow(sp, 2 - e1) / ry;
+      const nz = sgnPow(cp, 2 - e1) * sgnPow(st, 2 - e2) / rz;
+      const nl = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
       pos.push(x, y, z);
-
-      let nx = sgnPow(cu, 2 - e1) * sgnPow(cv, 2 - e2) / rx;
-      let ny = sgnPow(su, 2 - e1) / rz;
-      let nz = sgnPow(cu, 2 - e1) * sgnPow(sv, 2 - e2) / ry;
-      const len = Math.hypot(nx, ny, nz) || 1;
-      nrm.push(nx / len, ny / len, nz / len);
-      uv.push(j / cols, i / rows);
+      nrm.push(nx / nl, ny / nl, nz / nl);
+      uv.push(u, v);
     }
   }
-  for (let i = 0; i < rows; i++) {
-    for (let j = 0; j < cols; j++) {
-      const a = i * (cols + 1) + j;
-      const b = a + cols + 1;
-      idx.push(a, b, a + 1, b, b + 1, a + 1);
+  for (let j = 0; j < segV; j++) {
+    for (let i = 0; i < segU; i++) {
+      const a = j * (segU + 1) + i, b = a + 1, c = a + (segU + 1), d = c + 1;
+      idx.push(a, c, b, b, c, d);
     }
   }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  geo.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
-  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-  geo.setIndex(idx);
-  geo.computeVertexNormals();
-  return geo;
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geom.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
+  geom.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  geom.setIndex(idx);
+  if (clipY) {
+    const p = geom.attributes.position;
+    for (let k = 0; k < p.count; k++) {
+      const y = p.getY(k);
+      if (clipY === 'top' && y < 0) p.setY(k, 0);
+      if (clipY === 'bottom' && y > 0) p.setY(k, 0);
+    }
+    p.needsUpdate = true;
+    geom.computeVertexNormals();
+  }
+  return geom;
 }
 
-function roundedBoxGeo(w, h, d, r) {
-  const shape = new THREE.Shape();
-  const hw = w / 2, hh = h / 2;
-  r = Math.min(r, hw, hh);
-  shape.moveTo(-hw + r, -hh);
-  shape.lineTo(hw - r, -hh);
-  shape.quadraticCurveTo(hw, -hh, hw, -hh + r);
-  shape.lineTo(hw, hh - r);
-  shape.quadraticCurveTo(hw, hh, hw - r, hh);
-  shape.lineTo(-hw + r, hh);
-  shape.quadraticCurveTo(-hw, hh, -hw, hh - r);
-  shape.lineTo(-hw, -hh + r);
-  shape.quadraticCurveTo(-hw, -hh, -hw + r, -hh);
-  return new THREE.ExtrudeGeometry(shape, {
-    depth: d, bevelEnabled: true, bevelThickness: 0.008,
-    bevelSize: 0.008, bevelSegments: 3
-  });
-}
-
-function cableGeo(points, radius = 0.01) {
-  const curve = new THREE.CatmullRomCurve3(
-    points.map(p => new THREE.Vector3(p[0], p[1], p[2]))
-  );
-  return new THREE.TubeGeometry(curve, 48, radius, 8, false);
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   3.  MATERIALS (Phase 2 — all MeshPhysicalMaterial)
-   ═══════════════════════════════════════════════════════════════ */
-
-// Shell — premium ceramic/glass clearcoat with pearlescent sheen
-const shellMat = new THREE.MeshPhysicalMaterial({
-  color: 0xf0f0f4, roughness: 0.15, metalness: 0.02,
-  clearcoat: 1.0, clearcoatRoughness: 0.05,
-  sheen: 0.3, sheenRoughness: 0.4,
-  sheenColor: new THREE.Color(0xd0d0ff),
-  reflectivity: 0.9, envMapIntensity: 1.2, side: THREE.DoubleSide,
-});
-
-// PCB — dark green FR4 with solder-mask gloss
-const pcbMat = new THREE.MeshPhysicalMaterial({
-  color: 0x0a3520, roughness: 0.65, metalness: 0.0,
-  clearcoat: 0.4, clearcoatRoughness: 0.3,
-  specularIntensity: 0.3, specularColor: new THREE.Color(0x225533),
-});
-
-// Chips — silicon wafer iridescence
-const chipMat = new THREE.MeshPhysicalMaterial({
-  color: 0x12122a, roughness: 0.12, metalness: 0.7,
-  iridescence: 0.4, iridescenceIOR: 1.3,
-  iridescenceThicknessRange: [200, 500],
-  specularIntensity: 1.2, envMapIntensity: 1.5,
-});
-
-const chipTopMat = new THREE.MeshPhysicalMaterial({
-  color: 0x22223a, roughness: 0.08, metalness: 0.8,
-  iridescence: 0.6, iridescenceIOR: 1.4,
-  iridescenceThicknessRange: [150, 400],
-  clearcoat: 0.3, clearcoatRoughness: 0.1, envMapIntensity: 1.8,
-});
-
-// Battery — brushed metal anisotropic
-const batteryMat = new THREE.MeshPhysicalMaterial({
-  color: 0xc0c0ca, roughness: 0.1, metalness: 0.95,
-  anisotropy: 0.6, anisotropyRotation: 0,
-  clearcoat: 0.2, clearcoatRoughness: 0.15, envMapIntensity: 1.4,
-});
-
-// Flex cables — sheen
-const cableMat = new THREE.MeshPhysicalMaterial({
-  color: 0xe89030, roughness: 0.45, metalness: 0.15,
-  sheen: 0.5, sheenRoughness: 0.6,
-  sheenColor: new THREE.Color(0xffcc88),
-});
-
-// Antenna — polished gold
-const antennaMat = new THREE.MeshPhysicalMaterial({
-  color: 0xc8a84e, roughness: 0.15, metalness: 1.0,
-  specularIntensity: 1.3, specularColor: new THREE.Color(0xffe088),
-  envMapIntensity: 1.5,
-});
-
-// Haptic engines — machined steel
-const hapticMat = new THREE.MeshPhysicalMaterial({
-  color: 0x888890, roughness: 0.08, metalness: 0.98,
-  anisotropy: 0.4, clearcoat: 0.5, clearcoatRoughness: 0.08,
-  envMapIntensity: 1.6,
-});
-
-// Camera housing — dark glossy
-const cameraMat = new THREE.MeshPhysicalMaterial({
-  color: 0x1a1a22, roughness: 0.25, metalness: 0.7,
-  clearcoat: 0.8, clearcoatRoughness: 0.05, envMapIntensity: 1.2,
-});
-
-// Lens — flint glass with chromatic dispersion
-const lensMat = new THREE.MeshPhysicalMaterial({
-  color: 0x080830, roughness: 0.0, metalness: 0.0,
-  transmission: 0.95, thickness: 1.5, ior: 1.62,
-  attenuationColor: new THREE.Color(0xaabbff), attenuationDistance: 1.0,
-  specularIntensity: 1.0, envMapIntensity: 2.0,
-});
-
-// Copper heat spreader
-const copperMat = new THREE.MeshPhysicalMaterial({
-  color: 0xb87333, roughness: 0.08, metalness: 1.0,
-  specularIntensity: 1.5, specularColor: new THREE.Color(0xffaa66),
-  envMapIntensity: 1.8,
-});
-
-// Speaker
-const speakerMat = new THREE.MeshPhysicalMaterial({
-  color: 0x222228, roughness: 0.4, metalness: 0.5,
-  clearcoat: 0.3, clearcoatRoughness: 0.2,
-});
-
-// Gold traces — animated emissive via onBeforeCompile (Phase 5B)
-const goldTraceMat = new THREE.MeshPhysicalMaterial({
-  color: 0xdaa520, roughness: 0.1, metalness: 1.0,
-  clearcoat: 0.3, clearcoatRoughness: 0.4,
-  specularIntensity: 1.5, specularColor: new THREE.Color(0xffdd66),
-  envMapIntensity: 1.6,
-});
-
-// LiDAR emitter — pulsing emissive (Phase 5C)
-const lidarEmitterMat = new THREE.MeshPhysicalMaterial({
-  color: 0x200020, roughness: 0.2, metalness: 0.5,
-  emissive: 0x6600aa, emissiveIntensity: 0.5,
-});
-
-// Glow material — removed for clean version
-
-// SMD components (Phase 4)
-const smdMat = new THREE.MeshPhysicalMaterial({
-  color: 0x2a2a35, roughness: 0.3, metalness: 0.6,
-  clearcoat: 0.4, clearcoatRoughness: 0.2,
-});
-const resMat = new THREE.MeshPhysicalMaterial({
-  color: 0x8b7355, roughness: 0.5, metalness: 0.2,
-  clearcoat: 0.2, clearcoatRoughness: 0.3,
-});
-const solderPadMat = new THREE.MeshPhysicalMaterial({
-  color: 0xc0c0c0, roughness: 0.2, metalness: 0.9,
-});
-const bgaPadMat = new THREE.MeshPhysicalMaterial({
-  color: 0xc0c0c0, roughness: 0.15, metalness: 0.95,
-});
-const portMat = new THREE.MeshPhysicalMaterial({
-  color: 0x0a0a0a, roughness: 0.3, metalness: 0.8,
-});
-
-/* ═══════════════════════════════════════════════════════════════
-   Phase 5A — Fresnel edge glow on shell (onBeforeCompile)
-   ═══════════════════════════════════════════════════════════════ */
-shellMat.onBeforeCompile = (shader) => {
-  shader.uniforms.uFresnelPower = { value: 3.0 };
-  shader.uniforms.uFresnelColor = { value: new THREE.Color(0x6e5dfa) };
-  shader.uniforms.uFresnelIntensity = { value: 0.0 };
-
-  shader.fragmentShader = shader.fragmentShader.replace(
-    'void main() {',
-    `uniform float uFresnelPower;
-     uniform vec3 uFresnelColor;
-     uniform float uFresnelIntensity;
-     void main() {`
-  );
-  shader.fragmentShader = shader.fragmentShader.replace(
-    '#include <dithering_fragment>',
-    `vec3 fViewDir = normalize(vViewPosition);
-     float fFresnel = pow(1.0 - abs(dot(fViewDir, normalize(vNormal))), uFresnelPower);
-     gl_FragColor.rgb += uFresnelColor * fFresnel * uFresnelIntensity;
-     #include <dithering_fragment>`
-  );
-  shellMat.userData.shader = shader;
-};
-
-/* ═══════════════════════════════════════════════════════════════
-   Phase 5B — Animated data flow on gold traces
-   ═══════════════════════════════════════════════════════════════ */
-goldTraceMat.onBeforeCompile = (shader) => {
-  shader.uniforms.uTime = { value: 0 };
-  shader.uniforms.uFlowIntensity = { value: 0.0 };
-
-  shader.fragmentShader = shader.fragmentShader.replace(
-    'void main() {',
-    `uniform float uTime;
-     uniform float uFlowIntensity;
-     void main() {`
-  );
-  shader.fragmentShader = shader.fragmentShader.replace(
-    '#include <emissivemap_fragment>',
-    `#include <emissivemap_fragment>
-     float flow = sin(vUv.x * 40.0 - uTime * 3.0) * 0.5 + 0.5;
-     flow = pow(flow, 4.0);
-     totalEmissiveRadiance += vec3(0.9, 0.7, 0.2) * flow * uFlowIntensity;`
-  );
-  goldTraceMat.userData.shader = shader;
-};
-
-/* ═══════════════════════════════════════════════════════════════
-   4.  BUILD THE DEVICE
-   ═══════════════════════════════════════════════════════════════ */
+/* ═══ Device Assembly ═══ */
 const device = new THREE.Group();
 scene.add(device);
 const parts = {};
-
-const RX = 0.72, RY = 0.42, RZ = 0.13;  // thinner profile
-const E1 = 0.55, E2 = 0.85;             // rounder/more oval, tapered long edges
-
-// ── Shell ──
-parts.shellTop = new THREE.Mesh(createShellHalf(RX, RY, RZ, E1, E2, true, shellSegs), shellMat);
-parts.shellBottom = new THREE.Mesh(createShellHalf(RX, RY, RZ, E1, E2, false, shellSegs), shellMat);
-device.add(parts.shellTop, parts.shellBottom);
-
-// Shell rim
-const rimGeo = new THREE.TorusGeometry((RX + RY) / 2 * 0.72, 0.006, 8, 72);
-parts.shellRimTop = new THREE.Mesh(rimGeo, hapticMat);
-parts.shellRimTop.rotation.x = Math.PI / 2;
-parts.shellRimBottom = parts.shellRimTop.clone();
-device.add(parts.shellRimTop, parts.shellRimBottom);
-
-// Inner glow sphere — removed for clean version
-
-// ── Antenna Array ──
-{
-  const antennaGroup = new THREE.Group();
-  for (let i = 0; i < 24; i++) {
-    const angle = (i / 24) * Math.PI * 2;
-    const aRad = (RX + RY) / 2 * 0.68;
-    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.008, 0.003), antennaMat);
-    strip.position.set(Math.cos(angle) * aRad, 0, Math.sin(angle) * aRad);
-    strip.rotation.y = -angle;
-    antennaGroup.add(strip);
-  }
-  parts.antenna = antennaGroup;
-  device.add(antennaGroup);
-}
-
-// ── Haptic Engines ──
-{
-  const hapGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.06, 24);
-  parts.hapticL = new THREE.Mesh(hapGeo, hapticMat);
-  parts.hapticL.position.set(-0.45, 0, 0);
-  parts.hapticL.rotation.z = Math.PI / 2;
-  parts.hapticR = parts.hapticL.clone();
-  parts.hapticR.position.set(0.45, 0, 0);
-  device.add(parts.hapticL, parts.hapticR);
-}
-
-// ── Battery ──
-{
-  parts.battery = new THREE.Mesh(roundedBoxGeo(0.9, 0.55, 0.04, 0.06), batteryMat);
-  parts.battery.rotation.x = Math.PI / 2;
-  parts.battery.position.set(0, -0.04, 0);
-  device.add(parts.battery);
-}
-
-// ── Flex Cables ──
-{
-  parts.flexMain = new THREE.Mesh(
-    cableGeo([[0.15,0.02,0],[0.3,0.04,0.05],[0.4,0.02,0.12],[0.35,-0.01,0.2],[0.2,-0.03,0.15]], 0.008),
-    cableMat
-  );
-  parts.flexSensor = new THREE.Mesh(
-    cableGeo([[-0.1,0.01,0.05],[-0.2,0.03,0.15],[-0.35,0.02,0.1],[-0.32,0,-0.05]], 0.006),
-    cableMat
-  );
-  device.add(parts.flexMain, parts.flexSensor);
-}
-
-// ── Board Assembly Group — board + traces + SMD + pads move together ──
-const boardAssembly = new THREE.Group();
-boardAssembly.position.set(0, 0, 0);
-parts.boardAssembly = boardAssembly;
-device.add(boardAssembly);
-
-// ── Logic Board (PCB) + Dense Traces (Phase 4B) ──
-{
-  parts.board = new THREE.Mesh(roundedBoxGeo(0.7, 0.38, 0.015, 0.03), pcbMat);
-  parts.board.rotation.x = Math.PI / 2;
-  parts.board.position.set(0, 0.02, 0);
-  boardAssembly.add(parts.board);
-
-  const traceGroup = new THREE.Group();
-  // Horizontal traces — 20+
-  const hTraces = [
-    { w: 0.5, z: -0.14, x: 0.02 }, { w: 0.35, z: -0.1, x: -0.05 },
-    { w: 0.6, z: -0.06, x: 0.01 }, { w: 0.28, z: -0.02, x: 0.08 },
-    { w: 0.45, z: 0.02, x: -0.03 }, { w: 0.55, z: 0.06, x: 0.02 },
-    { w: 0.3, z: 0.1, x: -0.06 }, { w: 0.48, z: 0.14, x: 0.04 },
-    { w: 0.22, z: -0.12, x: 0.15 }, { w: 0.38, z: 0.0, x: -0.1 },
-    { w: 0.42, z: 0.04, x: 0.12 }, { w: 0.25, z: 0.08, x: -0.14 },
-    { w: 0.5, z: -0.08, x: 0.0 }, { w: 0.18, z: 0.12, x: 0.1 },
-    { w: 0.32, z: -0.04, x: -0.08 }, { w: 0.4, z: 0.16, x: 0.0 },
-    { w: 0.28, z: -0.16, x: 0.05 }, { w: 0.35, z: 0.05, x: -0.12 },
-    { w: 0.2, z: -0.01, x: 0.18 }, { w: 0.44, z: 0.09, x: -0.02 },
-  ];
-  hTraces.forEach(t => {
-    const tr = new THREE.Mesh(new THREE.BoxGeometry(t.w, 0.001, 0.003), goldTraceMat);
-    tr.position.set(t.x, 0.03, t.z);
-    traceGroup.add(tr);
-  });
-  // Vertical traces — 12+
-  for (let i = 0; i < 12; i++) {
-    const h = 0.12 + Math.random() * 0.18;
-    const tr = new THREE.Mesh(new THREE.BoxGeometry(0.003, 0.001, h), goldTraceMat);
-    tr.position.set(-0.28 + i * 0.05 + (Math.random() - 0.5) * 0.02, 0.03, (Math.random() - 0.5) * 0.2);
-    traceGroup.add(tr);
-  }
-  // Diagonal traces
-  for (let i = 0; i < 6; i++) {
-    const tr = new THREE.Mesh(new THREE.BoxGeometry(0.15 + Math.random() * 0.1, 0.001, 0.003), goldTraceMat);
-    tr.position.set((Math.random() - 0.5) * 0.4, 0.03, (Math.random() - 0.5) * 0.2);
-    tr.rotation.y = (Math.random() - 0.5) * 0.8;
-    traceGroup.add(tr);
-  }
-  parts.traces = traceGroup;
-  boardAssembly.add(traceGroup);
-}
-
-// ── Phase 4A — SMD Capacitors (InstancedMesh) ──
-{
-  const smdGeo = new THREE.BoxGeometry(0.012, 0.006, 0.005);
-  const smdMesh = new THREE.InstancedMesh(smdGeo, smdMat, smdCount);
-  const dummy = new THREE.Object3D();
-  for (let i = 0; i < smdCount; i++) {
-    dummy.position.set(
-      (Math.random() - 0.5) * 0.6,
-      0.035 + Math.random() * 0.003,
-      (Math.random() - 0.5) * 0.32
-    );
-    dummy.rotation.set(0, Math.random() * Math.PI, 0);
-    dummy.scale.setScalar(0.8 + Math.random() * 0.4);
-    dummy.updateMatrix();
-    smdMesh.setMatrixAt(i, dummy.matrix);
-  }
-  smdMesh.instanceMatrix.needsUpdate = true;
-  parts.smdComponents = smdMesh;
-  device.add(smdMesh);
-}
-
-// ── Phase 4A — SMD Resistors (InstancedMesh) ──
-{
-  const resGeo = new THREE.BoxGeometry(0.01, 0.004, 0.005);
-  const resMesh = new THREE.InstancedMesh(resGeo, resMat, resCount);
-  const dummy = new THREE.Object3D();
-  for (let i = 0; i < resCount; i++) {
-    dummy.position.set(
-      (Math.random() - 0.5) * 0.58,
-      0.034 + Math.random() * 0.003,
-      (Math.random() - 0.5) * 0.3
-    );
-    dummy.rotation.set(0, Math.random() * Math.PI, 0);
-    dummy.scale.setScalar(0.7 + Math.random() * 0.5);
-    dummy.updateMatrix();
-    resMesh.setMatrixAt(i, dummy.matrix);
-  }
-  resMesh.instanceMatrix.needsUpdate = true;
-  parts.resistors = resMesh;
-  device.add(resMesh);
-}
-
-// ── Phase 4A — Solder Pads (InstancedMesh) ──
-{
-  const padGeo = new THREE.CylinderGeometry(0.004, 0.004, 0.001, 8);
-  const padMesh = new THREE.InstancedMesh(padGeo, solderPadMat, padCount);
-  const dummy = new THREE.Object3D();
-  for (let i = 0; i < padCount; i++) {
-    dummy.position.set(
-      (Math.random() - 0.5) * 0.62,
-      0.031,
-      (Math.random() - 0.5) * 0.34
-    );
-    dummy.updateMatrix();
-    padMesh.setMatrixAt(i, dummy.matrix);
-  }
-  padMesh.instanceMatrix.needsUpdate = true;
-  parts.solderPads = padMesh;
-  device.add(padMesh);
-}
-
-// ── Neural Chip ──
-{
-  const chipBase = new THREE.Mesh(roundedBoxGeo(0.12, 0.12, 0.018, 0.01), chipMat);
-  chipBase.rotation.x = Math.PI / 2;
-  const chipTop = new THREE.Mesh(roundedBoxGeo(0.09, 0.09, 0.005, 0.008), chipTopMat);
-  chipTop.rotation.x = Math.PI / 2;
-  chipTop.position.y = 0.012;
-  const neuralGroup = new THREE.Group();
-  neuralGroup.add(chipBase, chipTop);
-  neuralGroup.position.set(-0.08, 0.04, -0.02);
-  parts.neural = neuralGroup;
-  device.add(neuralGroup);
-}
-
-// ── Phase 4C — BGA Pads Under Neural Chip ──
-{
-  const bgaGeo = new THREE.SphereGeometry(0.002, 6, 4);
-  const bgaCount = bgaGridSize * bgaGridSize;
-  const bgaMesh = new THREE.InstancedMesh(bgaGeo, bgaPadMat, bgaCount);
-  const dummy = new THREE.Object3D();
-  const spacing = 0.012;
-  let idx = 0;
-  for (let row = 0; row < bgaGridSize; row++) {
-    for (let col = 0; col < bgaGridSize; col++) {
-      dummy.position.set(
-        -0.08 + (col - bgaGridSize / 2) * spacing,
-        0.035,
-        -0.02 + (row - bgaGridSize / 2) * spacing
-      );
-      dummy.updateMatrix();
-      bgaMesh.setMatrixAt(idx++, dummy.matrix);
-    }
-  }
-  bgaMesh.instanceMatrix.needsUpdate = true;
-  parts.bgaPads = bgaMesh;
-  device.add(bgaMesh);
-}
-
-// ── Memory Chip ──
-{
-  parts.memory = new THREE.Mesh(roundedBoxGeo(0.1, 0.06, 0.012, 0.006), chipMat);
-  parts.memory.rotation.x = Math.PI / 2;
-  parts.memory.position.set(0.12, 0.04, 0.06);
-  device.add(parts.memory);
-}
-
-// ── Wireless Module ──
-{
-  parts.wireless = new THREE.Mesh(roundedBoxGeo(0.07, 0.05, 0.01, 0.005), chipMat);
-  parts.wireless.rotation.x = Math.PI / 2;
-  parts.wireless.position.set(-0.22, 0.035, 0.1);
-  device.add(parts.wireless);
-}
-
-// ── Thermal / Heat Spreader ──
-{
-  parts.thermal = new THREE.Mesh(roundedBoxGeo(0.16, 0.14, 0.006, 0.01), copperMat);
-  parts.thermal.rotation.x = Math.PI / 2;
-  parts.thermal.position.set(-0.08, 0.065, -0.02);
-  device.add(parts.thermal);
-}
-
-// ── Camera Module ──
-{
-  const camGroup = new THREE.Group();
-  const housing = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.035, 32), cameraMat);
-  const lens = new THREE.Mesh(new THREE.SphereGeometry(0.028, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), lensMat);
-  lens.position.y = 0.017;
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.038, 0.003, 8, 32), hapticMat);
-  ring.rotation.x = Math.PI / 2;
-  ring.position.y = 0.017;
-  camGroup.add(housing, lens, ring);
-  camGroup.rotation.x = Math.PI / 2;
-  camGroup.position.set(0.25, 0.04, -0.08);
-  parts.camera = camGroup;
-  device.add(camGroup);
-}
-
-// ── Microphone Array ──
-{
-  const micGroup = new THREE.Group();
-  [[0,0],[0.018,0.01],[-0.018,0.01],[0.018,-0.01],[-0.018,-0.01],[0,-0.02]].forEach(([x,z]) => {
-    const mic = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.015, 12), cameraMat);
-    mic.position.set(x, 0, z);
-    micGroup.add(mic);
-  });
-  micGroup.position.set(-0.2, 0.03, -0.12);
-  parts.mic = micGroup;
-  device.add(micGroup);
-}
-
-// ── Speaker ──
-{
-  const spkGroup = new THREE.Group();
-  spkGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.035, 0.02, 24), speakerMat));
-  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.015, 16, 8), speakerMat);
-  dome.position.y = 0.01;
-  spkGroup.add(dome);
-  const mag = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.015, 16), hapticMat);
-  mag.position.y = -0.018;
-  spkGroup.add(mag);
-  spkGroup.position.set(0.18, 0.03, 0.14);
-  parts.speaker = spkGroup;
-  device.add(spkGroup);
-}
-
-// ── LiDAR / Depth Sensor (Phase 5C pulsing emitter) ──
-{
-  const lidarGroup = new THREE.Group();
-  const emitter = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.02, 16), lidarEmitterMat);
-  const receiver = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.018, 16), cameraMat);
-  receiver.position.x = 0.035;
-  lidarGroup.add(emitter, receiver);
-  lidarGroup.position.set(0.22, 0.04, 0.12);
-  parts.lidar = lidarGroup;
-  device.add(lidarGroup);
-}
-
-// ── Phase 4D — Connector Ports ──
-{
-  const connGroup = new THREE.Group();
-  // USB-C port
-  const port = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.008, 0.012), portMat);
-  port.position.set(0, -0.01, RY * 0.72);
-  connGroup.add(port);
-  // Gold contact pins inside port
-  const pinGeo = new THREE.BoxGeometry(0.002, 0.003, 0.008);
-  for (let i = 0; i < 6; i++) {
-    const pin = new THREE.Mesh(pinGeo, goldTraceMat);
-    pin.position.set(-0.01 + i * 0.004, -0.01, RY * 0.72);
-    connGroup.add(pin);
-  }
-  parts.connectors = connGroup;
-  boardAssembly.add(connGroup);
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   5.  POLAR NOISE — store base instance matrices for animation
-   ═══════════════════════════════════════════════════════════════ */
-// Store base matrices for SMD components so we can apply noise each frame
-const smdBaseMatrices = [];
-const resBaseMatrices = [];
-{
-  const m = new THREE.Matrix4();
-  for (let i = 0; i < smdCount; i++) {
-    parts.smdComponents.getMatrixAt(i, m);
-    smdBaseMatrices.push(m.clone());
-  }
-  for (let i = 0; i < resCount; i++) {
-    parts.resistors.getMatrixAt(i, m);
-    resBaseMatrices.push(m.clone());
-  }
-}
-const _noisePos = new THREE.Vector3();
-const _noiseQuat = new THREE.Quaternion();
-const _noiseScale = new THREE.Vector3();
-const _noiseMat = new THREE.Matrix4();
-
-/* ═══════════════════════════════════════════════════════════════
-   6.  POST-PROCESSING (Phase 3)
-   ═══════════════════════════════════════════════════════════════ */
-const composer = new EffectComposer(renderer);
-composer.addPass(new RenderPass(scene, camera));
-
-// Phase 3E — Tuned bloom
-const bloomPass = new UnrealBloomPass(
-  new THREE.Vector2(W, H),
-  isMobile ? 0.25 : 0.4,
-  0.4,
-  0.85
-);
-composer.addPass(bloomPass);
-
-// Phase 3C — Chromatic aberration
-const chromaticAberrationShader = {
-  uniforms: {
-    tDiffuse: { value: null },
-    uIntensity: { value: 0.0015 },
-    uDirection: { value: new THREE.Vector2(1.0, 0.0) },
-  },
-  vertexShader: `varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
-  fragmentShader: `
-    uniform sampler2D tDiffuse;
-    uniform float uIntensity;
-    uniform vec2 uDirection;
-    varying vec2 vUv;
-    void main(){
-      vec2 offset = uIntensity * uDirection;
-      float dist = length(vUv - 0.5) * 2.0;
-      offset *= dist * dist;
-      float r = texture2D(tDiffuse, vUv + offset).r;
-      float g = texture2D(tDiffuse, vUv).g;
-      float b = texture2D(tDiffuse, vUv - offset).b;
-      float a = texture2D(tDiffuse, vUv).a;
-      gl_FragColor = vec4(r, g, b, a);
-    }
-  `
-};
-const chromaticPass = new ShaderPass(chromaticAberrationShader);
-if (QUALITY !== 'low') composer.addPass(chromaticPass);
-
-// Phase 3D — Film grain
-const filmGrainShader = {
-  uniforms: {
-    tDiffuse: { value: null },
-    uTime: { value: 0 },
-    uIntensity: { value: 0.04 },
-  },
-  vertexShader: `varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
-  fragmentShader: `
-    uniform sampler2D tDiffuse;
-    uniform float uTime;
-    uniform float uIntensity;
-    varying vec2 vUv;
-    float hash(vec2 p){
-      vec3 p3=fract(vec3(p.xyx)*0.1031);
-      p3+=dot(p3,p3.yzx+33.33);
-      return fract((p3.x+p3.y)*p3.z);
-    }
-    void main(){
-      vec4 color=texture2D(tDiffuse,vUv);
-      float noise=hash(vUv*1000.0+uTime*100.0)*2.0-1.0;
-      color.rgb+=noise*uIntensity;
-      gl_FragColor=color;
-    }
-  `
-};
-const grainPass = new ShaderPass(filmGrainShader);
-if (QUALITY !== 'low') composer.addPass(grainPass);
-
-// Phase 3E — Enhanced vignette with purple tint
-const vignetteShader = {
-  uniforms: {
-    tDiffuse: { value: null },
-    uDarkness: { value: 0.6 },
-    uOffset: { value: 1.2 },
-  },
-  vertexShader: `varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
-  fragmentShader: `
-    uniform sampler2D tDiffuse;
-    uniform float uDarkness;
-    uniform float uOffset;
-    varying vec2 vUv;
-    void main(){
-      vec4 c=texture2D(tDiffuse,vUv);
-      float d=distance(vUv,vec2(0.5));
-      float vignette=smoothstep(0.8,uOffset*0.5,d*(uDarkness+uOffset));
-      vec3 tint=mix(vec3(0.02,0.01,0.04),vec3(1.0),vignette);
-      c.rgb*=tint;
-      c.rgb*=vignette;
-      gl_FragColor=c;
-    }
-  `
-};
-composer.addPass(new ShaderPass(vignetteShader));
-
-if (!isMobile) composer.addPass(new SMAAPass(W, H));
-composer.addPass(new OutputPass());
-
-/* ═══════════════════════════════════════════════════════════════
-   7.  STORE REST POSITIONS
-   ═══════════════════════════════════════════════════════════════ */
 const restState = {};
-Object.entries(parts).forEach(([key, obj]) => {
-  restState[key] = {
-    px: obj.position.x, py: obj.position.y, pz: obj.position.z,
-    rx: obj.rotation.x, ry: obj.rotation.y, rz: obj.rotation.z,
+
+const RX = 0.72, RY = 0.42, RZ = 0.13;
+const E1 = 0.55, E2 = 0.85;
+const SEG = 64;
+
+// Shell halves with Fresnel rim glow
+const shellTopMat = mat.shell.clone();
+const shellBotMat = mat.shell.clone();
+[shellTopMat, shellBotMat].forEach(m => {
+  m.userData.fresnelIntensity = { value: 0.0 };
+  m.onBeforeCompile = (shader) => {
+    shader.uniforms.uFresnel = m.userData.fresnelIntensity;
+    shader.uniforms.uFresnelCol = { value: new THREE.Color(0x6ec6ff) };
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <dithering_fragment>',
+      `vec3 vd=normalize(vViewPosition);vec3 n=normalize(vNormal);float f=pow(1.0-abs(dot(vd,n)),3.0);gl_FragColor.rgb+=uFresnelCol*f*uFresnel.value*0.6;\n#include <dithering_fragment>`
+    );
   };
 });
 
-/* ═══════════════════════════════════════════════════════════════
-   8.  LABEL SYSTEM (Phase 9A — SVG connectors)
-   ═══════════════════════════════════════════════════════════════ */
-const svgNS = 'http://www.w3.org/2000/svg';
-const linesSvg = document.getElementById('label-lines');
+const shellTop = new THREE.Mesh(makeSuperellipsoid(RX, RY, RZ, E1, E2, SEG, SEG, 'top'), shellTopMat);
+device.add(shellTop); parts.shellTop = shellTop;
 
-const labelMap = {
-  antenna:  { el: document.getElementById('lbl-antenna'),  obj: parts.antenna },
-  hapticL:  { el: document.getElementById('lbl-hapticL'),  obj: parts.hapticL },
-  hapticR:  { el: document.getElementById('lbl-hapticR'),  obj: parts.hapticR },
-  battery:  { el: document.getElementById('lbl-battery'),  obj: parts.battery },
-  flex:     { el: document.getElementById('lbl-flex'),     obj: parts.flexMain },
-  board:    { el: document.getElementById('lbl-board'),    obj: parts.board },
-  neural:   { el: document.getElementById('lbl-neural'),   obj: parts.neural },
-  memory:   { el: document.getElementById('lbl-memory'),   obj: parts.memory },
-  wireless: { el: document.getElementById('lbl-wireless'), obj: parts.wireless },
-  thermal:  { el: document.getElementById('lbl-thermal'),  obj: parts.thermal },
-  camera:   { el: document.getElementById('lbl-camera'),   obj: parts.camera },
-  mic:      { el: document.getElementById('lbl-mic'),      obj: parts.mic },
-  speaker:  { el: document.getElementById('lbl-speaker'),  obj: parts.speaker },
-  lidar:    { el: document.getElementById('lbl-lidar'),    obj: parts.lidar },
-};
+const shellBot = new THREE.Mesh(makeSuperellipsoid(RX, RY, RZ, E1, E2, SEG, SEG, 'bottom'), shellBotMat);
+device.add(shellBot); parts.shellBot = shellBot;
 
-const labelVisibility = {};
-Object.keys(labelMap).forEach(k => labelVisibility[k] = 0);
+// Board assembly (PCB + traces + connector — moves down together)
+const boardAssembly = new THREE.Group();
+device.add(boardAssembly); parts.boardAssembly = boardAssembly;
 
-const _projVec = new THREE.Vector3();
-function updateLabels() {
-  // Clear SVG lines
-  while (linesSvg.firstChild) linesSvg.removeChild(linesSvg.firstChild);
+const pcb = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.018, 0.08), mat.pcb);
+pcb.position.set(0, -0.02, 0);
+boardAssembly.add(pcb);
 
-  Object.entries(labelMap).forEach(([key, { el, obj }]) => {
-    const vis = labelVisibility[key] || 0;
-    if (vis < 0.01) { el.style.opacity = '0'; return; }
-
-    obj.updateWorldMatrix(true, false);
-    _projVec.setFromMatrixPosition(obj.matrixWorld);
-    _projVec.project(camera);
-
-    if (_projVec.z > 1) { el.style.opacity = '0'; return; }
-
-    const x = (_projVec.x * 0.5 + 0.5) * W;
-    const y = (-_projVec.y * 0.5 + 0.5) * H;
-
-    const labelX = x;
-    const labelY = y - 30;
-    el.style.transform = `translate(${labelX}px, ${labelY}px)`;
-    el.style.opacity = String(vis);
-
-    // SVG connector line
-    if (vis > 0.1) {
-      const line = document.createElementNS(svgNS, 'line');
-      line.setAttribute('x1', String(x));
-      line.setAttribute('y1', String(y));
-      line.setAttribute('x2', String(labelX));
-      line.setAttribute('y2', String(labelY + 12));
-      line.setAttribute('stroke', `rgba(167,139,250,${vis * 0.4})`);
-      line.setAttribute('stroke-width', '1');
-      line.setAttribute('stroke-dasharray', '2,3');
-      linesSvg.appendChild(line);
-    }
-  });
+const traceGeomH = new THREE.BoxGeometry(0.5, 0.002, 0.001);
+const traceGeomD = new THREE.BoxGeometry(0.15, 0.002, 0.001);
+const allTraces = [];
+for (let i = 0; i < 14; i++) {
+  const t = new THREE.Mesh(traceGeomH, traceMatBase.clone());
+  t.position.set((Math.random()-0.5)*0.05, -0.008, -0.035+(i/13)*0.07);
+  t.scale.x = 0.25 + Math.random() * 0.75;
+  boardAssembly.add(t); allTraces.push(t);
+}
+for (let i = 0; i < 8; i++) {
+  const t = new THREE.Mesh(traceGeomD, traceMatBase.clone());
+  t.position.set(-0.18+i*0.05, -0.008, (Math.random()-0.5)*0.06);
+  t.rotation.y = (Math.random()-0.5)*0.9;
+  boardAssembly.add(t); allTraces.push(t);
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   9.  CAMERA SPLINE PATH (Phase 8)
-   ═══════════════════════════════════════════════════════════════ */
-// Camera choreography — 10 control points for cinematic precision
-// The spline gives smooth interpolation; extra points at critical
-// moments (zoom-in hold, zoom-out ramp) let us shape the velocity.
-const cameraPath = new THREE.CatmullRomCurve3([
-  // 0 — Hero: centred, medium distance
+const usbBody = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.02, 0.025), mat.steel);
+usbBody.position.set(0.31, -0.02, 0);
+boardAssembly.add(usbBody); parts.connector = usbBody;
+for (let i = 0; i < 8; i++) {
+  const pin = new THREE.Mesh(new THREE.BoxGeometry(0.002, 0.005, 0.001), mat.gold);
+  pin.position.set(0.315, -0.02, -0.01 + i * 0.0028);
+  boardAssembly.add(pin);
+}
+
+// Processor + heat spreader
+const mainChip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.012, 0.06), mat.chip);
+mainChip.position.set(0, -0.003, 0);
+device.add(mainChip); parts.mainChip = mainChip;
+
+const heatSpreader = new THREE.Mesh(new THREE.BoxGeometry(0.068, 0.005, 0.068), mat.copper);
+heatSpreader.position.set(0, 0.007, 0);
+device.add(heatSpreader); parts.heatSpreader = heatSpreader;
+
+// Memory
+const memoryMod = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.008, 0.03), mat.memory);
+memoryMod.position.set(-0.1, -0.005, 0.012);
+device.add(memoryMod); parts.memoryMod = memoryMod;
+
+// Wireless
+const wirelessMod = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.008, 0.025), mat.chip.clone());
+wirelessMod.position.set(0.12, -0.005, -0.012);
+device.add(wirelessMod); parts.wirelessMod = wirelessMod;
+
+// Battery
+const battery = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.025, 0.07), mat.battery);
+battery.position.set(0, -0.06, 0);
+device.add(battery); parts.battery = battery;
+
+// Antenna array
+const antennaGroup = new THREE.Group();
+device.add(antennaGroup); parts.antennas = antennaGroup;
+const antGeom = new THREE.BoxGeometry(0.04, 0.003, 0.006);
+for (let i = 0; i < 10; i++) {
+  const a = (i/10)*Math.PI*2;
+  const el = new THREE.Mesh(antGeom, mat.antennaGold);
+  el.position.set(Math.cos(a)*0.52, 0, Math.sin(a)*0.085);
+  el.rotation.y = a;
+  antennaGroup.add(el);
+}
+
+// Haptic engines
+const hapticGeom = new THREE.CylinderGeometry(0.02, 0.02, 0.025, 16);
+const hapticL = new THREE.Mesh(hapticGeom, mat.steel);
+hapticL.position.set(-0.25, 0, 0); hapticL.rotation.z = Math.PI/2;
+device.add(hapticL); parts.hapticL = hapticL;
+const hapticR = new THREE.Mesh(hapticGeom, mat.steel.clone());
+hapticR.position.set(0.25, 0, 0); hapticR.rotation.z = Math.PI/2;
+device.add(hapticR); parts.hapticR = hapticR;
+
+// Flex cables
+function flexCable(pts) {
+  const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.5);
+  return new THREE.Mesh(new THREE.TubeGeometry(curve, 32, 0.003, 6, false), mat.cable);
+}
+const cables = [
+  flexCable([new THREE.Vector3(-0.1,-0.04,0), new THREE.Vector3(-0.16,-0.02,0.02), new THREE.Vector3(-0.23,0,0.01)]),
+  flexCable([new THREE.Vector3(0.1,-0.04,0), new THREE.Vector3(0.18,-0.01,-0.015), new THREE.Vector3(0.24,0,0)]),
+  flexCable([new THREE.Vector3(0,-0.04,0.03), new THREE.Vector3(-0.04,-0.06,0.05), new THREE.Vector3(-0.08,-0.08,0.04)]),
+];
+cables.forEach((c,i) => { device.add(c); parts['cable'+i] = c; });
+
+// Camera module
+const camHousing = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.018, 0.02, 16), mat.steel.clone());
+camHousing.position.set(0.2, 0.02, 0.03);
+device.add(camHousing); parts.camModule = camHousing;
+const lensEl = new THREE.Mesh(new THREE.SphereGeometry(0.012, 24, 24, 0, Math.PI*2, 0, Math.PI/2), mat.lens);
+lensEl.position.set(0.2, 0.03, 0.03);
+device.add(lensEl); parts.lens = lensEl;
+
+// Microphone array
+const micGroup = new THREE.Group();
+micGroup.position.set(-0.18, 0.02, 0.03);
+device.add(micGroup); parts.micArray = micGroup;
+const micGeom = new THREE.CylinderGeometry(0.004, 0.004, 0.006, 8);
+for (let i = 0; i < 5; i++) {
+  const mic = new THREE.Mesh(micGeom, mat.steel.clone());
+  mic.position.set(i*0.012-0.024, 0, 0);
+  micGroup.add(mic);
+}
+
+// Speaker
+const speaker = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.022, 0.012, 24), mat.speaker);
+speaker.position.set(0, 0.02, -0.04);
+device.add(speaker); parts.speaker = speaker;
+const grillMesh = new THREE.Mesh(new THREE.TorusGeometry(0.015, 0.001, 6, 24), mat.steel.clone());
+grillMesh.rotation.x = Math.PI/2; grillMesh.position.y = 0.008;
+speaker.add(grillMesh);
+
+// Depth sensor
+const depthE = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.008, 12), mat.sensor);
+depthE.position.set(-0.22, 0.02, -0.02);
+device.add(depthE); parts.depthE = depthE;
+const depthR = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.008, 12), mat.sensor.clone());
+depthR.position.set(-0.22, 0.02, 0.015);
+device.add(depthR); parts.depthR = depthR;
+
+// LEDs (bonus micro-detail)
+const ledMat = new THREE.MeshPhysicalMaterial({
+  color: 0x00ff88, metalness: 0, roughness: 0.3,
+  emissive: new THREE.Color(0x00ff88), emissiveIntensity: 0,
+});
+const ledGeom = new THREE.SphereGeometry(0.002, 8, 8);
+const leds = [];
+for (let i = 0; i < 3; i++) {
+  const led = new THREE.Mesh(ledGeom, ledMat.clone());
+  led.position.set(-0.06+i*0.06, -0.009, 0.035);
+  device.add(led); leds.push(led);
+}
+
+/* ═══ Instanced SMD Components (float in centre, NOT on board) ═══ */
+const smdCapCount = 35, smdResCount = 30, padCount = 24, bgaCount = 36;
+
+const smdCaps = new THREE.InstancedMesh(new THREE.BoxGeometry(0.008, 0.005, 0.004), mat.smdBrown, smdCapCount);
+const smdRes = new THREE.InstancedMesh(new THREE.BoxGeometry(0.01, 0.004, 0.004), mat.smdDark, smdResCount);
+const solderPads = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.003, 0.003, 0.001, 8), mat.gold, padCount);
+const bgaBalls = new THREE.InstancedMesh(new THREE.SphereGeometry(0.0015, 6, 6), mat.gold, bgaCount);
+
+[smdCaps, smdRes, solderPads, bgaBalls].forEach(m => device.add(m));
+parts.smdCaps = smdCaps; parts.smdRes = smdRes;
+parts.solderPads = solderPads; parts.bgaBalls = bgaBalls;
+
+const baseMats = [];
+const _m4 = new THREE.Matrix4();
+
+function scatterInstances(mesh, count, radiusX, radiusZ, yRange) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const r = 0.03 + Math.random() * radiusX;
+    _m4.identity();
+    _m4.setPosition(Math.cos(angle)*r, yRange[0]+Math.random()*(yRange[1]-yRange[0]), Math.sin(angle)*r*radiusZ);
+    mesh.setMatrixAt(i, _m4);
+    baseMats.push(_m4.clone());
+  }
+  mesh.instanceMatrix.needsUpdate = true;
+}
+
+scatterInstances(smdCaps, smdCapCount, 0.18, 0.4, [-0.01, 0.01]);
+scatterInstances(smdRes, smdResCount, 0.16, 0.35, [-0.01, 0.01]);
+scatterInstances(solderPads, padCount, 0.2, 0.4, [-0.012, -0.008]);
+for (let i = 0; i < bgaCount; i++) {
+  const row = Math.floor(i/6), col = i%6;
+  _m4.identity();
+  _m4.setPosition(-0.015+col*0.006, -0.013, -0.015+row*0.005);
+  bgaBalls.setMatrixAt(i, _m4);
+  baseMats.push(_m4.clone());
+}
+bgaBalls.instanceMatrix.needsUpdate = true;
+
+// Store rest positions
+function storeRest(key, obj) {
+  restState[key] = {
+    px: obj.position.x, py: obj.position.y, pz: obj.position.z,
+    rx: obj.rotation.x, ry: obj.rotation.y, rz: obj.rotation.z,
+    sx: obj.scale.x, sy: obj.scale.y, sz: obj.scale.z,
+  };
+}
+Object.keys(parts).forEach(k => storeRest(k, parts[k]));
+
+/* ═══ Camera Spline ═══ */
+const cameraSpline = new THREE.CatmullRomCurve3([
   new THREE.Vector3(0, 0.3, 3.8),
-  // 1 — Shell opens: gentle orbit right
   new THREE.Vector3(1.0, 0.45, 3.4),
-  // 2 — Connectivity: orbit right, closer for antenna detail
   new THREE.Vector3(1.8, 0.3, 2.4),
-  // 3 — Power: swing left, frame battery dropping
   new THREE.Vector3(-1.4, -0.15, 2.6),
-  // 4 — Brain approach: dive inward
   new THREE.Vector3(0.15, 0.1, 1.0),
-  // 5 — Brain EXTREME CLOSE: right on top of the floating components
   new THREE.Vector3(0.35, 0.06, 0.5),
-  // 6 — Brain orbit: sweep around at intimate distance
   new THREE.Vector3(-0.25, 0.12, 0.55),
-  // 7 — Brain exit: begin pulling back
   new THREE.Vector3(-0.4, 0.08, 0.7),
-  // 8 — Senses: continue pull-back, orbit
   new THREE.Vector3(0.8, 0.2, 2.0),
-  // 9 — Full explode: wide, elevated
   new THREE.Vector3(0, 0.55, 4.8),
-  // 10 — Hold wide: linger
   new THREE.Vector3(-0.2, 0.5, 4.6),
-  // 11 — Reassemble: snap to hero
   new THREE.Vector3(0, 0.3, 3.8),
 ], false, 'catmullrom', 0.3);
 
-const cameraProxy = { progress: 0 };
+/* ═══ Post-Processing ═══ */
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
 
-/* ═══════════════════════════════════════════════════════════════
-   10. SCROLL ANIMATIONS (GSAP)
-   ═══════════════════════════════════════════════════════════════ */
-let scrollProgress = 0;
-
-const masterTL = G.timeline({
-  scrollTrigger: {
-    trigger: '.scroll-container',
-    start: 'top top',
-    end: 'bottom bottom',
-    scrub: 1.5,
-    onUpdate: self => { scrollProgress = self.progress; },
-  }
-});
-
-// Phase 8 — Camera follows spline
-masterTL.to(cameraProxy, { progress: 1, duration: 100, ease: 'none' }, 0);
-
-// Phase 1B — Animate lighting intensity with scroll
-masterTL
-  .to(keyRect, { intensity: 5, duration: 10 }, 10)    // dim during shell open
-  .to(rimRect, { intensity: 8, duration: 10 }, 10)     // dramatic rim
-  .to(keyRect, { intensity: 6, duration: 15 }, 48)     // even for brain
-  .to(fillRect, { intensity: 4, duration: 15 }, 48)
-  .to(rimRect, { intensity: 3, duration: 15 }, 48)
-  .to(keyRect, { intensity: 8, duration: 4 }, 95)      // snap back to hero
-  .to(fillRect, { intensity: 3, duration: 4 }, 95)
-  .to(rimRect, { intensity: 5, duration: 4 }, 95);
-
-// Phase 5A — Fresnel glow follows shell open
-const fresnelProxy = { intensity: 0 };
-masterTL
-  .to(fresnelProxy, { intensity: 0.6, duration: 10 }, 10)
-  .to(fresnelProxy, { intensity: 0, duration: 3 }, 95);
-
-// Phase 5B — Gold trace data flow
-const flowProxy = { intensity: 0 };
-masterTL
-  .to(flowProxy, { intensity: 1.0, duration: 10 }, 50)
-  .to(flowProxy, { intensity: 0, duration: 3 }, 95);
-
-// Inner particles — removed for clean version
-
-/* ── Shell separates ── */
-masterTL
-  .to(parts.shellTop.position, { y: 0.8, duration: 12, ease: 'power3.inOut' }, 10)
-  .to(parts.shellBottom.position, { y: -0.8, duration: 12, ease: 'power3.inOut' }, 10)
-  .to(parts.shellRimTop.position, { y: 0.8, duration: 12, ease: 'power3.inOut' }, 10)
-  .to(parts.shellRimBottom.position, { y: -0.8, duration: 12, ease: 'power3.inOut' }, 10)
-;
-
-/* ── Layer 1 — Antenna + Haptics ── */
-masterTL
-  .to(parts.antenna.position, { y: 0.5, duration: 10, ease: 'power2.out' }, 24)
-  .to(parts.antenna.rotation, { y: Math.PI * 0.5, duration: 10 }, 24)
-  .to(parts.hapticL.position, { x: -1.0, y: 0.1, z: 0.2, duration: 10, ease: 'power2.out' }, 26)
-  .to(parts.hapticR.position, { x: 1.0, y: 0.1, z: 0.2, duration: 10, ease: 'power2.out' }, 26)
-  .to(labelVisibility, { antenna: 1, duration: 4 }, 27)
-  .to(labelVisibility, { hapticL: 1, hapticR: 1, duration: 4 }, 28);
-
-/* ── Layer 2 — Battery + Cables ── */
-masterTL
-  .to(parts.battery.position, { y: -0.5, z: -0.6, duration: 10, ease: 'power2.out' }, 37)
-  .to(parts.battery.rotation, { z: 0.15, duration: 10 }, 37)
-  .to(parts.flexMain.position, { x: 0.5, y: 0.3, z: -0.4, duration: 10 }, 38)
-  .to(parts.flexSensor.position, { x: -0.4, y: 0.2, z: -0.35, duration: 10 }, 39)
-  .to(labelVisibility, { battery: 1, flex: 1, duration: 4 }, 40)
-  .to(labelVisibility, { antenna: 0.3, hapticL: 0.3, hapticR: 0.3, duration: 6 }, 38);
-
-/* ── Layer 3 — Brain ── */
-masterTL
-  .to(boardAssembly.position, { y: -0.35, z: -0.2, duration: 10 }, 50)
-  .to(parts.neural.position, { x: -0.3, y: 0.55, z: 0.5, duration: 12, ease: 'power2.out' }, 52)
-  .to(parts.neural.rotation, { y: Math.PI * 0.25, duration: 12 }, 52)
-  .to(parts.memory.position, { x: 0.4, y: 0.45, z: 0.45, duration: 10 }, 53)
-  .to(parts.wireless.position, { x: -0.55, y: 0.35, z: 0.4, duration: 10 }, 54)
-  .to(parts.thermal.position, { x: -0.3, y: 0.75, z: 0.35, duration: 10 }, 51)
-  .to(labelVisibility, { board: 1, neural: 1, memory: 1, wireless: 1, thermal: 1, duration: 5 }, 55)
-  .to(labelVisibility, { battery: 0.2, flex: 0.2, duration: 6 }, 52);
-
-/* ── Layer 4 — Senses ── */
-masterTL
-  .to(parts.camera.position, { x: 0.7, y: 0.25, z: 0.6, duration: 10, ease: 'power2.out' }, 67)
-  .to(parts.camera.rotation, { x: Math.PI / 2, z: 0.3, duration: 10 }, 67)
-  .to(parts.mic.position, { x: -0.6, y: 0.15, z: 0.55, duration: 10 }, 68)
-  .to(parts.speaker.position, { x: 0.5, y: -0.2, z: 0.65, duration: 10 }, 69)
-  .to(parts.lidar.position, { x: 0.65, y: 0.5, z: -0.3, duration: 10 }, 68)
-  .to(labelVisibility, { camera: 1, mic: 1, speaker: 1, lidar: 1, duration: 5 }, 70)
-  .to(labelVisibility, { board: 0.3, neural: 0.5, memory: 0.3, wireless: 0.2, thermal: 0.2, duration: 6 }, 68);
-
-/* ── Full Explode ── */
-masterTL
-  .to(parts.shellTop.position, { y: 1.6, duration: 10 }, 80)
-  .to(parts.shellBottom.position, { y: -1.6, duration: 10 }, 80)
-  .to(parts.shellRimTop.position, { y: 1.6, duration: 10 }, 80)
-  .to(parts.shellRimBottom.position, { y: -1.6, duration: 10 }, 80)
-  .to(parts.antenna.position, { y: 0.9, duration: 10 }, 80)
-  .to(parts.hapticL.position, { x: -1.4, duration: 10 }, 80)
-  .to(parts.hapticR.position, { x: 1.4, duration: 10 }, 80)
-  .to(parts.battery.position, { y: -0.9, z: -0.9, duration: 10 }, 80)
-  .to(parts.neural.position, { y: 0.85, duration: 10 }, 80)
-  .to(parts.thermal.position, { y: 1.05, duration: 10 }, 80)
-  .to(parts.camera.position, { x: 1.0, z: 0.85, duration: 10 }, 80)
-  .to(parts.lidar.position, { x: 0.9, y: 0.75, duration: 10 }, 80)
-  .to(labelVisibility, {
-    antenna: 1, hapticL: 0.7, hapticR: 0.7, battery: 1, flex: 0.7,
-    board: 1, neural: 1, memory: 1, wireless: 0.7, thermal: 0.8,
-    camera: 1, mic: 0.8, speaker: 0.8, lidar: 1, duration: 6
-  }, 82);
-
-/* ── Reassemble — rapid snap-back ── */
-Object.entries(parts).forEach(([key, obj]) => {
-  if (key === 'board' || key === 'traces' || key === 'smdComponents' ||
-      key === 'resistors' || key === 'solderPads' || key === 'bgaPads' ||
-      key === 'connectors' || key === 'boardAssembly') return;
-  masterTL.to(obj.position, {
-    x: restState[key].px, y: restState[key].py, z: restState[key].pz,
-    duration: 4, ease: 'power4.in'
-  }, 95);
-  masterTL.to(obj.rotation, {
-    x: restState[key].rx, y: restState[key].ry, z: restState[key].rz,
-    duration: 4, ease: 'power4.in'
-  }, 95);
-});
-masterTL.to(boardAssembly.position, {
-  x: 0, y: 0, z: 0, duration: 4, ease: 'power4.in'
-}, 95);
-
-// Labels snap off immediately as collapse begins
-masterTL
-  .to(labelVisibility, {
-    antenna: 0, hapticL: 0, hapticR: 0, battery: 0, flex: 0,
-    board: 0, neural: 0, memory: 0, wireless: 0, thermal: 0,
-    camera: 0, mic: 0, speaker: 0, lidar: 0, duration: 2
-  }, 95);
-
-/* ── Text section animations ── */
-document.querySelectorAll('.section-content').forEach((el) => {
-  G.fromTo(el,
-    { opacity: 0, y: 60 },
-    {
-      opacity: 1, y: 0, duration: 1, ease: 'power2.out',
-      scrollTrigger: { trigger: el, start: 'top 80%', end: 'top 30%', scrub: 1 }
-    }
-  );
-  G.to(el, {
-    opacity: 0, y: -40,
-    scrollTrigger: { trigger: el, start: 'bottom 60%', end: 'bottom 20%', scrub: 1 }
-  });
-});
-
-/* ═══════════════════════════════════════════════════════════════
-   11. SMOOTH SCROLL (LENIS)
-   ═══════════════════════════════════════════════════════════════ */
-const lenis = new window.Lenis({
-  duration: 1.4,
-  easing: t => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-  touchMultiplier: 1.5,
-});
-lenis.on('scroll', ST.update);
-G.ticker.add((time) => { lenis.raf(time * 1000); });
-G.ticker.lagSmoothing(0);
-
-/* ═══════════════════════════════════════════════════════════════
-   12. BACKGROUND GRADIENT SHIFT
-   ═══════════════════════════════════════════════════════════════ */
-const bgColors = [
-  new THREE.Color(0x050510),
-  new THREE.Color(0x080818),
-  new THREE.Color(0x060612),
-  new THREE.Color(0x0a0815),
-  new THREE.Color(0x0c0a18),
-  new THREE.Color(0x080814),
-  new THREE.Color(0x0a0a1a),
-  new THREE.Color(0x050510),
-];
-
-function lerpBgColor(progress) {
-  const idx = progress * (bgColors.length - 1);
-  const lo = Math.floor(idx);
-  const hi = Math.min(lo + 1, bgColors.length - 1);
-  const t = idx - lo;
-  const c = bgColors[lo].clone().lerp(bgColors[hi], t);
-  scene.background.copy(c);
-  scene.fog.color.copy(c);
-  document.body.style.backgroundColor = `#${c.getHexString()}`;
+let bloomPass = null;
+if (gpuTier !== 'low') {
+  bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.4, 0.6, 0.85);
+  composer.addPass(bloomPass);
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   13. ANIMATION LOOP (Phase 7 — velocity effects)
-   ═══════════════════════════════════════════════════════════════ */
-let idleRotY = 0;
+const chromaticShader = {
+  uniforms: { tDiffuse:{value:null}, uStrength:{value:0.002}, uRes:{value:new THREE.Vector2(window.innerWidth,window.innerHeight)} },
+  vertexShader: `varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+  fragmentShader: `uniform sampler2D tDiffuse;uniform float uStrength;uniform vec2 uRes;varying vec2 vUv;void main(){vec2 d=vUv-0.5;float dist=dot(d,d);float off=uStrength*dist;float r=texture2D(tDiffuse,vUv+d*off).r;float g=texture2D(tDiffuse,vUv).g;float b=texture2D(tDiffuse,vUv-d*off).b;gl_FragColor=vec4(r,g,b,1.0);}`,
+};
+let chromaticPass = null;
+if (gpuTier !== 'low') { chromaticPass = new ShaderPass(chromaticShader); composer.addPass(chromaticPass); }
+
+const grainShader = {
+  uniforms: { tDiffuse:{value:null}, uTime:{value:0}, uAmount:{value:0.05} },
+  vertexShader: `varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+  fragmentShader: `uniform sampler2D tDiffuse;uniform float uTime;uniform float uAmount;varying vec2 vUv;float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}void main(){vec4 c=texture2D(tDiffuse,vUv);float g=hash(vUv*1000.0+uTime)*2.0-1.0;c.rgb+=g*uAmount;gl_FragColor=c;}`,
+};
+let grainPass = null;
+if (gpuTier !== 'low') { grainPass = new ShaderPass(grainShader); composer.addPass(grainPass); }
+
+const vignetteShader = {
+  uniforms: { tDiffuse:{value:null}, uDarkness:{value:0.5}, uOffset:{value:1.0}, uTint:{value:new THREE.Color(0x0a0515)} },
+  vertexShader: `varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+  fragmentShader: `uniform sampler2D tDiffuse;uniform float uDarkness;uniform float uOffset;uniform vec3 uTint;varying vec2 vUv;void main(){vec4 c=texture2D(tDiffuse,vUv);vec2 uv=(vUv-0.5)*2.0;float v=1.0-dot(uv*uOffset,uv*uOffset);v=clamp(pow(max(v,0.0),uDarkness),0.0,1.0);c.rgb=mix(uTint,c.rgb,v);gl_FragColor=c;}`,
+};
+composer.addPass(new ShaderPass(vignetteShader));
+if (gpuTier === 'high' && !isMobile) composer.addPass(new SMAAPass(window.innerWidth, window.innerHeight));
+composer.addPass(new OutputPass());
+
+/* ═══ GSAP + Lenis ═══ */
+const loadScript = (src) => new Promise(r => { const s = document.createElement('script'); s.src = src; s.onload = r; document.head.appendChild(s); });
+await loadScript('https://cdn.jsdelivr.net/npm/gsap@3.12.7/dist/gsap.min.js');
+await loadScript('https://cdn.jsdelivr.net/npm/gsap@3.12.7/dist/ScrollTrigger.min.js');
+await loadScript('https://cdn.jsdelivr.net/npm/lenis@1.1.18/dist/lenis.min.js');
+
+gsap.registerPlugin(ScrollTrigger);
+const lenis = new Lenis({ duration: 1.2, easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10*t)), smoothWheel: true, touchMultiplier: 1.5 });
+lenis.on('scroll', ScrollTrigger.update);
+gsap.ticker.add((time) => lenis.raf(time * 1000));
+gsap.ticker.lagSmoothing(0);
+
+let scrollProgress = 0, scrollVelocity = 0;
+
+/* ═══ Master Timeline ═══ */
+const tl = gsap.timeline({
+  scrollTrigger: {
+    trigger: '#scroll-content', start: 'top top', end: 'bottom bottom', scrub: 1.5,
+    onUpdate: (self) => { scrollProgress = self.progress; scrollVelocity = Math.abs(self.getVelocity()) / 1000; },
+  },
+});
+
+// S2: Shell opens (6–22)
+tl.to(parts.shellTop.position, { y: 0.25, duration: 14, ease: 'power2.inOut' }, 6);
+tl.to(parts.shellBot.position, { y: -0.25, duration: 14, ease: 'power2.inOut' }, 6);
+tl.to(shellTopMat.userData.fresnelIntensity, { value: 1.0, duration: 8 }, 6);
+tl.to(shellBotMat.userData.fresnelIntensity, { value: 1.0, duration: 8 }, 6);
+tl.to(innerGlow, { intensity: 3, duration: 10 }, 8);
+
+// S3: Connectivity (22–35)
+tl.to(parts.antennas.position, { y: 0.15, duration: 10, ease: 'power2.out' }, 22);
+tl.to(parts.antennas.scale, { x: 1.3, y: 1.3, z: 1.3, duration: 10 }, 22);
+tl.to(parts.hapticL.position, { x: -0.45, y: 0.05, duration: 10, ease: 'power2.out' }, 23);
+tl.to(parts.hapticR.position, { x: 0.45, y: 0.05, duration: 10, ease: 'power2.out' }, 23);
+tl.to(parts.shellTop.position, { y: 0.45, duration: 12 }, 22);
+tl.to(parts.shellBot.position, { y: -0.45, duration: 12 }, 22);
+
+// S4: Power (35–48)
+tl.to(parts.battery.position, { y: -0.4, z: -0.15, duration: 12, ease: 'power2.out' }, 35);
+tl.to(parts.cable0.position, { x: -0.15, y: -0.2, duration: 10, ease: 'power2.out' }, 36);
+tl.to(parts.cable1.position, { x: 0.15, y: -0.2, duration: 10, ease: 'power2.out' }, 36);
+tl.to(parts.cable2.position, { y: -0.25, z: 0.1, duration: 10, ease: 'power2.out' }, 37);
+
+// S5: Compute (48–68) — board drops DOWN
+tl.to(parts.boardAssembly.position, { y: -0.35, z: -0.2, duration: 12, ease: 'power2.out' }, 48);
+tl.to(parts.mainChip.position, { y: 0.04, duration: 10, ease: 'power1.out' }, 50);
+tl.to(parts.heatSpreader.position, { y: 0.06, duration: 10, ease: 'power1.out' }, 50);
+tl.to(parts.memoryMod.position, { x: -0.16, y: 0.02, duration: 10 }, 52);
+tl.to(parts.wirelessMod.position, { x: 0.18, y: 0.02, duration: 10 }, 52);
+tl.to(innerGlow, { intensity: 1, duration: 8 }, 55);
+
+// S6: Sensors (68–80)
+tl.to(parts.camModule.position, { x: 0.35, y: 0.15, z: 0.12, duration: 10, ease: 'power2.out' }, 68);
+tl.to(parts.lens.position, { x: 0.35, y: 0.18, z: 0.12, duration: 10, ease: 'power2.out' }, 68);
+tl.to(parts.micArray.position, { x: -0.35, y: 0.15, z: 0.12, duration: 10, ease: 'power2.out' }, 69);
+tl.to(parts.speaker.position, { y: 0.15, z: -0.15, duration: 10, ease: 'power2.out' }, 70);
+tl.to(parts.depthE.position, { x: -0.38, y: 0.12, z: -0.1, duration: 10, ease: 'power2.out' }, 70);
+tl.to(parts.depthR.position, { x: -0.38, y: 0.12, z: 0.08, duration: 10, ease: 'power2.out' }, 70);
+tl.to(parts.shellTop.position, { y: 0.65, duration: 10 }, 68);
+tl.to(parts.shellBot.position, { y: -0.65, duration: 10 }, 68);
+
+// S7: Full explode (80–94)
+tl.to(parts.antennas.position, { y: 0.35, duration: 8 }, 80);
+tl.to(parts.battery.position, { y: -0.6, duration: 8 }, 80);
+tl.to(parts.boardAssembly.position, { y: -0.5, duration: 8 }, 80);
+tl.to(parts.shellTop.position, { y: 0.8, duration: 8 }, 80);
+tl.to(parts.shellBot.position, { y: -0.8, duration: 8 }, 80);
+tl.to(parts.mainChip.position, { y: 0.1, duration: 8 }, 80);
+tl.to(parts.heatSpreader.position, { y: 0.15, duration: 8 }, 80);
+tl.to(parts.hapticL.position, { x: -0.55, duration: 8 }, 80);
+tl.to(parts.hapticR.position, { x: 0.55, duration: 8 }, 80);
+tl.to(shellTopMat.userData.fresnelIntensity, { value: 0.3, duration: 8 }, 80);
+tl.to(shellBotMat.userData.fresnelIntensity, { value: 0.3, duration: 8 }, 80);
+
+// S8: Rapid reassembly (95–100)
+const RA = 95, RD = 4, RE = 'power4.in';
+Object.keys(parts).forEach(key => {
+  const r = restState[key]; if (!r) return;
+  tl.to(parts[key].position, { x:r.px, y:r.py, z:r.pz, duration:RD, ease:RE }, RA);
+  tl.to(parts[key].rotation, { x:r.rx, y:r.ry, z:r.rz, duration:RD, ease:RE }, RA);
+  tl.to(parts[key].scale, { x:r.sx, y:r.sy, z:r.sz, duration:RD, ease:RE }, RA);
+});
+tl.to(shellTopMat.userData.fresnelIntensity, { value: 0, duration: 3, ease: RE }, RA);
+tl.to(shellBotMat.userData.fresnelIntensity, { value: 0, duration: 3, ease: RE }, RA);
+tl.to(innerGlow, { intensity: 0, duration: 3, ease: RE }, RA);
+
+/* ═══ Text Animations ═══ */
+document.querySelectorAll('.section').forEach(sec => {
+  const h2 = sec.querySelector('h2'), p = sec.querySelector('p');
+  if (!h2 && !p) return;
+  gsap.timeline({ scrollTrigger: { trigger: sec, start: 'top 80%', end: 'top 20%', scrub: 1 } })
+    .to([h2, p].filter(Boolean), { opacity: 1, y: 0, duration: 1, stagger: 0.2 }, 0);
+  gsap.timeline({ scrollTrigger: { trigger: sec, start: 'bottom 80%', end: 'bottom 30%', scrub: 1 } })
+    .to([h2, p].filter(Boolean), { opacity: 0, y: -30, duration: 1 }, 0);
+});
+gsap.timeline({ scrollTrigger: { trigger: '#s-reassemble', start: 'center center', end: 'bottom center', scrub: 1 } })
+  .to('#final-title', { opacity: 1, duration: 1 }, 0);
+
+/* ═══ 3D Labels ═══ */
+const labelDefs = [
+  { key:'antennas',     text:'Phased Antenna Array',  off:[0,0.06,0] },
+  { key:'hapticL',      text:'Haptic Engine (L)',      off:[-0.04,0.03,0] },
+  { key:'hapticR',      text:'Haptic Engine (R)',      off:[0.04,0.03,0] },
+  { key:'battery',      text:'Solid-State Battery',   off:[0,-0.04,0] },
+  { key:'mainChip',     text:'Neural Processor',      off:[0,0.04,0] },
+  { key:'heatSpreader', text:'Copper Heat Spreader',  off:[0.05,0.03,0] },
+  { key:'memoryMod',    text:'Memory Module',          off:[-0.04,0.03,0] },
+  { key:'wirelessMod',  text:'Wireless Module',        off:[0.04,0.03,0] },
+  { key:'camModule',    text:'Camera Module',          off:[0.04,0.04,0] },
+  { key:'micArray',     text:'Microphone Array',       off:[-0.04,0.04,0] },
+  { key:'speaker',      text:'Audio Transducer',       off:[0,0.04,-0.02] },
+  { key:'depthE',       text:'Depth Sensor',           off:[-0.04,0.04,0] },
+  { key:'connector',    text:'USB-C Port',             off:[0.04,0.03,0] },
+  { key:'boardAssembly',text:'Logic Board / PCB',      off:[0,-0.04,0] },
+];
+const labelsContainer = document.getElementById('labels-overlay');
+const svgOverlay = document.getElementById('connector-svg');
+const labelEls = [], lineEls = [];
+labelDefs.forEach(def => {
+  const el = document.createElement('div');
+  el.className = 'label-3d'; el.textContent = def.text;
+  labelsContainer.appendChild(el);
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  svgOverlay.appendChild(line);
+  labelEls.push({ el, def }); lineEls.push(line);
+});
+
+const _wP = new THREE.Vector3(), _sP = new THREE.Vector3(), _cP = new THREE.Vector3();
+function updateLabels() {
+  const visible = scrollProgress > 0.15 && scrollProgress < 0.92;
+  const closeUp = scrollProgress > 0.38 && scrollProgress < 0.55;
+  const show = visible && !closeUp;
+  labelEls.forEach(({ el, def }, i) => {
+    const obj = parts[def.key];
+    if (!obj) { el.style.opacity = '0'; return; }
+    obj.getWorldPosition(_wP);
+    _wP.x += def.off[0]; _wP.y += def.off[1]; _wP.z += def.off[2];
+    _sP.copy(_wP).project(camera);
+    const x = (_sP.x*0.5+0.5)*window.innerWidth;
+    const y = (-_sP.y*0.5+0.5)*window.innerHeight;
+    obj.getWorldPosition(_cP);
+    const cs = _cP.clone().project(camera);
+    const cx = (cs.x*0.5+0.5)*window.innerWidth;
+    const cy = (-cs.y*0.5+0.5)*window.innerHeight;
+    if (_sP.z > 1 || !show) { el.style.opacity='0'; lineEls[i].setAttribute('opacity','0'); return; }
+    el.style.left = x+'px'; el.style.top = y+'px'; el.style.opacity = '1';
+    lineEls[i].setAttribute('x1',cx); lineEls[i].setAttribute('y1',cy);
+    lineEls[i].setAttribute('x2',x-8); lineEls[i].setAttribute('y2',y);
+    lineEls[i].setAttribute('opacity','1');
+  });
+}
+
+/* ═══ Loader Animation ═══ */
+const loaderCanvas = document.getElementById('loader-canvas');
+const lCtx = loaderCanvas.getContext('2d');
+let loaderT = 0;
+function drawLoader() {
+  const loader = document.getElementById('loader');
+  if (!loader || loader.classList.contains('hidden')) return;
+  const w=180, h=180; lCtx.clearRect(0,0,w,h); loaderT += 0.02;
+  const cx=w/2, cy=h/2, rx=60, ry=25;
+  lCtx.strokeStyle = 'rgba(110,198,255,0.4)'; lCtx.lineWidth = 1;
+  lCtx.beginPath();
+  for (let i=0;i<=48;i++) {
+    const a=(i/48)*Math.PI*2;
+    const x=cx+Math.cos(a)*rx*Math.cos(loaderT)-Math.sin(a)*ry*Math.sin(loaderT)*0.3;
+    const y=cy+Math.sin(a)*ry+Math.cos(a)*rx*Math.sin(loaderT)*0.15;
+    i===0?lCtx.moveTo(x,y):lCtx.lineTo(x,y);
+  }
+  lCtx.closePath(); lCtx.stroke();
+  lCtx.strokeStyle='rgba(110,198,255,0.2)'; lCtx.beginPath();
+  for (let i=0;i<=48;i++) {
+    const a=(i/48)*Math.PI*2;
+    const x=cx+Math.cos(a)*rx*Math.cos(loaderT);
+    const y=cy+Math.cos(a)*rx*Math.sin(loaderT)*0.15;
+    i===0?lCtx.moveTo(x,y):lCtx.lineTo(x,y);
+  }
+  lCtx.stroke();
+  const pulse=Math.sin(loaderT*3)*0.3+0.7;
+  lCtx.fillStyle=`rgba(110,198,255,${pulse*0.5})`;
+  lCtx.beginPath(); lCtx.arc(cx,cy,3,0,Math.PI*2); lCtx.fill();
+  requestAnimationFrame(drawLoader);
+}
+drawLoader();
+
+/* ═══ Pre-compile & warm-up ═══ */
+renderer.compile(scene, camera);
+composer.render();
+setTimeout(() => {
+  const loader = document.getElementById('loader');
+  if (loader) { loader.classList.add('hidden'); setTimeout(() => loader.remove(), 600); }
+}, 400);
+
+/* ═══ Animation Loop ═══ */
+const progressFill = document.getElementById('progress-fill');
+const _nP = new THREE.Vector3(), _nQ = new THREE.Quaternion(), _nS = new THREE.Vector3(), _nM = new THREE.Matrix4();
 const clock = new THREE.Clock();
-const scrollFillEl = document.getElementById('scroll-fill');
 
 function animate() {
   requestAnimationFrame(animate);
-  const dt = clock.getDelta();
-  const t = clock.getElapsedTime();
+  const t = clock.getElapsedTime(), dt = clock.getDelta();
 
-  // Idle rotation — varies with scroll phase
-  const rotSpeed = scrollProgress < 0.08 ? 0.15         // hero: gentle spin
-    : scrollProgress > 0.95 ? 0.4                        // reassemble: rapid snap spin
-    : scrollProgress > 0.45 && scrollProgress < 0.68 ? 0.01  // brain zoom + orbit: near-still (camera orbits, not device)
-    : scrollProgress > 0.78 ? 0.025                      // full explode: slow drift
-    : 0.05;                                               // default orbit
-  idleRotY += rotSpeed * dt;
-  device.rotation.y = idleRotY;
+  // Idle rotation
+  let rotSpeed;
+  if (scrollProgress < 0.08) rotSpeed = 0.15;
+  else if (scrollProgress > 0.95) rotSpeed = 0.4;
+  else if (scrollProgress > 0.38 && scrollProgress < 0.55) rotSpeed = 0.01;
+  else if (scrollProgress > 0.78) rotSpeed = 0.025;
+  else rotSpeed = 0.05;
+  device.rotation.y += rotSpeed * dt;
 
-  // Phase 8 — Camera follows spline
-  const camPos = cameraPath.getPointAt(cameraProxy.progress);
-  camera.position.copy(camPos);
+  // Camera spline
+  camera.position.copy(cameraSpline.getPointAt(Math.max(0, Math.min(1, scrollProgress))));
   camera.lookAt(0, 0, 0);
 
-  // Background colour
-  lerpBgColor(scrollProgress);
+  // Trace emissive pulses
+  const traceActive = scrollProgress > 0.15 && scrollProgress < 0.94;
+  allTraces.forEach((tr, i) => {
+    tr.material.emissiveIntensity = traceActive ? (Math.sin(t*3+i*0.5)*0.5+0.5)*0.8 : 0;
+  });
 
-  // Phase 7 — Scroll velocity effects
-  const rawVelocity = Math.abs(lenis.velocity || 0);
-  const normVelocity = Math.min(rawVelocity / 2000, 1.0);
+  // LED pulse
+  const ledActive = scrollProgress > 0.1 && scrollProgress < 0.94;
+  leds.forEach((led, i) => {
+    led.material.emissiveIntensity = ledActive ? (Math.sin(t*2+i*2.1)*0.5+0.5)*1.2 : 0;
+  });
 
-  if (QUALITY !== 'low') {
-    chromaticPass.uniforms.uIntensity.value = THREE.MathUtils.lerp(
-      chromaticPass.uniforms.uIntensity.value,
-      0.0008 + normVelocity * 0.004, 0.1
-    );
-    grainPass.uniforms.uIntensity.value = THREE.MathUtils.lerp(
-      grainPass.uniforms.uIntensity.value,
-      0.03 + normVelocity * 0.03, 0.1
-    );
-    grainPass.uniforms.uTime.value = t;
-  }
+  // SMD noise float
+  const noiseAmp = 0.003, noiseSpd = 0.8;
+  [
+    { mesh: smdCaps, count: smdCapCount, offset: 0 },
+    { mesh: smdRes, count: smdResCount, offset: smdCapCount },
+    { mesh: solderPads, count: padCount, offset: smdCapCount + smdResCount },
+    { mesh: bgaBalls, count: bgaCount, offset: smdCapCount + smdResCount + padCount },
+  ].forEach(({ mesh, count, offset }) => {
+    for (let i = 0; i < count; i++) {
+      const bi = offset + i;
+      if (!baseMats[bi]) continue;
+      baseMats[bi].decompose(_nP, _nQ, _nS);
+      const seed = bi * 1.37;
+      _nP.x += Math.sin(t*noiseSpd+seed)*noiseAmp;
+      _nP.y += Math.sin(t*noiseSpd*1.3+seed*2.1)*noiseAmp;
+      _nP.z += Math.cos(t*noiseSpd*0.9+seed*0.7)*noiseAmp;
+      _nM.compose(_nP, _nQ, _nS);
+      mesh.setMatrixAt(i, _nM);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+  });
 
-  bloomPass.strength = THREE.MathUtils.lerp(
-    bloomPass.strength,
-    (isMobile ? 0.25 : 0.4) + normVelocity * 0.15, 0.1
-  );
+  // Dynamic lighting
+  const shellOpen = Math.max(0, Math.min(1, (scrollProgress-0.04)/0.12));
+  const fullExplode = scrollProgress > 0.5 ? Math.min(1, (scrollProgress-0.5)/0.3) : 0;
+  const reassemble = scrollProgress > 0.93 ? Math.min(1, (scrollProgress-0.93)/0.05) : 0;
+  keyLight.intensity = 8 + shellOpen*6 - fullExplode*4 - reassemble*6;
+  rimLight.intensity = 5 + shellOpen*4 - fullExplode*3;
+  renderer.toneMappingExposure = 1.0 + shellOpen*0.2 - fullExplode*0.1;
 
-  // Phase 5A — Fresnel glow
-  if (shellMat.userData.shader) {
-    shellMat.userData.shader.uniforms.uFresnelIntensity.value = fresnelProxy.intensity;
-  }
+  // Post-processing
+  if (chromaticPass) chromaticPass.uniforms.uStrength.value = 0.001 + Math.min(scrollVelocity*0.003, 0.008);
+  if (grainPass) grainPass.uniforms.uTime.value = t;
 
-  // Phase 5B — Gold trace data flow
-  if (goldTraceMat.userData.shader) {
-    goldTraceMat.userData.shader.uniforms.uTime.value = t;
-    goldTraceMat.userData.shader.uniforms.uFlowIntensity.value = flowProxy.intensity;
-  }
-
-  // Phase 5C — LiDAR pulse
-  lidarEmitterMat.emissiveIntensity = 0.3 + Math.sin(t * 4.0) * 0.5;
-
-  // Polar noise on board-mounted components
-  const noiseAmp = 0.003; // subtle
-  const noiseSpeed = 0.8;
-  for (let i = 0; i < smdCount; i++) {
-    smdBaseMatrices[i].decompose(_noisePos, _noiseQuat, _noiseScale);
-    const seed = i * 1.37;
-    _noisePos.x += Math.sin(t * noiseSpeed + seed) * noiseAmp;
-    _noisePos.y += Math.sin(t * noiseSpeed * 1.3 + seed * 2.1) * noiseAmp;
-    _noisePos.z += Math.cos(t * noiseSpeed * 0.9 + seed * 0.7) * noiseAmp;
-    _noiseMat.compose(_noisePos, _noiseQuat, _noiseScale);
-    parts.smdComponents.setMatrixAt(i, _noiseMat);
-  }
-  parts.smdComponents.instanceMatrix.needsUpdate = true;
-
-  for (let i = 0; i < resCount; i++) {
-    resBaseMatrices[i].decompose(_noisePos, _noiseQuat, _noiseScale);
-    const seed = i * 2.03;
-    _noisePos.x += Math.cos(t * noiseSpeed * 1.1 + seed) * noiseAmp;
-    _noisePos.y += Math.sin(t * noiseSpeed * 0.7 + seed * 1.5) * noiseAmp;
-    _noisePos.z += Math.sin(t * noiseSpeed * 1.2 + seed * 0.9) * noiseAmp;
-    _noiseMat.compose(_noisePos, _noiseQuat, _noiseScale);
-    parts.resistors.setMatrixAt(i, _noiseMat);
-  }
-  parts.resistors.instanceMatrix.needsUpdate = true;
-
-  // Phase 9B — Scroll progress indicator
-  scrollFillEl.style.height = `${scrollProgress * 100}%`;
-
-  // Labels
   updateLabels();
-
-  // Render
+  progressFill.style.height = (scrollProgress * 100) + '%';
   composer.render();
 }
+animate();
 
-/* ═══════════════════════════════════════════════════════════════
-   14. RESIZE (Phase 10B — debounced)
-   ═══════════════════════════════════════════════════════════════ */
-let resizeTimeout;
+/* ═══ Free Explore Mode ═══ */
+let freeMode = false, dragging = false, mx = 0, my = 0;
+let theta = 0, phi = 0.3, radius = 3.8;
+canvas.addEventListener('mousedown', (e) => {
+  if (scrollProgress > 0.98) { dragging = true; freeMode = true; mx = e.clientX; my = e.clientY; }
+});
+window.addEventListener('mousemove', (e) => {
+  if (!dragging || !freeMode) return;
+  theta -= (e.clientX-mx)*0.005;
+  phi = Math.max(-1, Math.min(1, phi+(e.clientY-my)*0.005));
+  mx = e.clientX; my = e.clientY;
+  camera.position.set(Math.sin(theta)*Math.cos(phi)*radius, Math.sin(phi)*radius, Math.cos(theta)*Math.cos(phi)*radius);
+  camera.lookAt(0, 0, 0);
+});
+window.addEventListener('mouseup', () => { dragging = false; });
+canvas.addEventListener('wheel', (e) => { if (!freeMode) return; radius = Math.max(1, Math.min(8, radius+e.deltaY*0.005)); }, { passive: true });
+
+/* ═══ Resize ═══ */
+let resizeTimer;
 window.addEventListener('resize', () => {
-  clearTimeout(resizeTimeout);
-  resizeTimeout = setTimeout(() => {
-    W = window.innerWidth;
-    H = window.innerHeight;
-    camera.aspect = W / H;
-    camera.updateProjectionMatrix();
-    renderer.setSize(W, H);
-    composer.setSize(W, H);
-    bloomPass.resolution.set(W, H);
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    const w = window.innerWidth, h = window.innerHeight;
+    camera.aspect = w/h; camera.updateProjectionMatrix();
+    renderer.setSize(w, h); composer.setSize(w, h);
+    if (chromaticPass) chromaticPass.uniforms.uRes.value.set(w, h);
   }, 150);
 });
 
-/* ═══════════════════════════════════════════════════════════════
-   15. LOADING (Phase 9C — wireframe preview)
-   ═══════════════════════════════════════════════════════════════ */
-const loaderEl = document.getElementById('loader');
-const loaderBar = document.getElementById('loader-bar');
-const loaderCanvas = document.getElementById('loader-canvas');
-
-// Wireframe pod preview
-{
-  const lCtx = loaderCanvas.getContext('2d');
-  const lW = 160, lH = 160;
-  let lAngle = 0;
-
-  function drawLoaderFrame() {
-    lCtx.clearRect(0, 0, lW, lH);
-    lAngle += 0.02;
-
-    // Draw wireframe ellipse (simplified pod cross-section)
-    lCtx.strokeStyle = 'rgba(167, 139, 250, 0.4)';
-    lCtx.lineWidth = 1;
-
-    for (let ring = 0; ring < 6; ring++) {
-      const rFrac = ring / 5;
-      const rx = 50 * (1 - rFrac * 0.3);
-      const ry = 20 * (1 - rFrac * 0.3);
-      const yOff = (rFrac - 0.5) * 30;
-
-      lCtx.beginPath();
-      for (let i = 0; i <= 64; i++) {
-        const a = (i / 64) * Math.PI * 2;
-        const x = lW / 2 + Math.cos(a + lAngle) * rx;
-        const y = lH / 2 + yOff + Math.sin(a) * ry * Math.cos(lAngle * 0.5);
-        i === 0 ? lCtx.moveTo(x, y) : lCtx.lineTo(x, y);
-      }
-      lCtx.closePath();
-      lCtx.stroke();
-    }
-
-    // Meridian lines
-    for (let m = 0; m < 8; m++) {
-      const mAngle = (m / 8) * Math.PI * 2 + lAngle;
-      lCtx.beginPath();
-      for (let i = 0; i <= 32; i++) {
-        const t = (i / 32) * Math.PI - Math.PI / 2;
-        const x = lW / 2 + Math.cos(mAngle) * 50 * Math.cos(t);
-        const y = lH / 2 + 25 * Math.sin(t);
-        i === 0 ? lCtx.moveTo(x, y) : lCtx.lineTo(x, y);
-      }
-      lCtx.stroke();
-    }
-  }
-
-  function tickLoader() {
-    loadProgress += (100 - loadProgress) * 0.06;
-    loaderBar.style.width = loadProgress + '%';
-    drawLoaderFrame();
-
-    if (loadProgress < 99) {
-      requestAnimationFrame(tickLoader);
-    } else {
-      loaderBar.style.width = '100%';
-      // Anti-flicker: pre-compile all materials and render a warm-up frame
-      renderer.compile(scene, camera);
-      composer.render();
-      setTimeout(() => {
-        loaderEl.classList.add('hidden');
-        animate();
-      }, 500);
-    }
-  }
-
-  let loadProgress = 0;
-  tickLoader();
-}
-
+console.log(`[Pod] GPU tier: ${gpuTier} | Mobile: ${isMobile}`);
 </script>
 </body>
 </html>
