@@ -1046,27 +1046,31 @@ function updateLabels() {
 // The spline gives smooth interpolation; extra points at critical
 // moments (zoom-in hold, zoom-out ramp) let us shape the velocity.
 const cameraPath = new THREE.CatmullRomCurve3([
-  // 0 — Hero: centred, medium distance, slight elevation
+  // 0 — Hero: centred, medium distance
   new THREE.Vector3(0, 0.3, 3.8),
-  // 1 — Shell opens: gentle orbit right, pull back a touch to frame separation
+  // 1 — Shell opens: gentle orbit right
   new THREE.Vector3(1.0, 0.45, 3.4),
-  // 2 — Connectivity: orbit further right, move in slightly for antenna detail
+  // 2 — Connectivity: orbit right, closer for antenna detail
   new THREE.Vector3(1.8, 0.3, 2.4),
-  // 3 — Power: swing left and drop to frame battery falling away
+  // 3 — Power: swing left, frame battery dropping
   new THREE.Vector3(-1.4, -0.15, 2.6),
-  // 4 — Brain approach: begin centring, start pulling in
-  new THREE.Vector3(0.2, 0.15, 1.8),
-  // 5 — Brain ZOOM: intimate close-up on floating central components
-  new THREE.Vector3(0.08, 0.1, 1.2),
-  // 6 — Senses: slow pull-back begins, gentle orbit
-  new THREE.Vector3(0.7, 0.2, 2.2),
-  // 7 — Full explode: wide pull-back, slight elevation to see everything
+  // 4 — Brain approach: dive inward
+  new THREE.Vector3(0.15, 0.1, 1.0),
+  // 5 — Brain EXTREME CLOSE: right on top of the floating components
+  new THREE.Vector3(0.35, 0.06, 0.5),
+  // 6 — Brain orbit: sweep around at intimate distance
+  new THREE.Vector3(-0.25, 0.12, 0.55),
+  // 7 — Brain exit: begin pulling back
+  new THREE.Vector3(-0.4, 0.08, 0.7),
+  // 8 — Senses: continue pull-back, orbit
+  new THREE.Vector3(0.8, 0.2, 2.0),
+  // 9 — Full explode: wide, elevated
   new THREE.Vector3(0, 0.55, 4.8),
-  // 8 — Hold wide: linger on the full constellation
+  // 10 — Hold wide: linger
   new THREE.Vector3(-0.2, 0.5, 4.6),
-  // 9 — Reassemble: snap back to hero framing
+  // 11 — Reassemble: snap to hero
   new THREE.Vector3(0, 0.3, 3.8),
-], false, 'catmullrom', 0.35); // lower tension = tighter curves at control points
+], false, 'catmullrom', 0.3);
 
 const cameraProxy = { progress: 0 };
 
@@ -1272,8 +1276,8 @@ function animate() {
 
   // Idle rotation — varies with scroll phase
   const rotSpeed = scrollProgress < 0.08 ? 0.15         // hero: gentle spin
-    : scrollProgress > 0.95 ? 0.35                       // reassemble: rapid spin
-    : scrollProgress > 0.48 && scrollProgress < 0.65 ? 0.02  // brain zoom: near-still
+    : scrollProgress > 0.95 ? 0.4                        // reassemble: rapid snap spin
+    : scrollProgress > 0.45 && scrollProgress < 0.68 ? 0.01  // brain zoom + orbit: near-still (camera orbits, not device)
     : scrollProgress > 0.78 ? 0.025                      // full explode: slow drift
     : 0.05;                                               // default orbit
   idleRotY += rotSpeed * dt;
