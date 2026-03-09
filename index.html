@@ -594,12 +594,18 @@ device.add(parts.shellRimTop, parts.shellRimBottom);
   device.add(parts.flexMain, parts.flexSensor);
 }
 
+// ── Board Assembly Group — board + traces + SMD + pads move together ──
+const boardAssembly = new THREE.Group();
+boardAssembly.position.set(0, 0, 0);
+parts.boardAssembly = boardAssembly;
+device.add(boardAssembly);
+
 // ── Logic Board (PCB) + Dense Traces (Phase 4B) ──
 {
   parts.board = new THREE.Mesh(roundedBoxGeo(0.7, 0.38, 0.015, 0.03), pcbMat);
   parts.board.rotation.x = Math.PI / 2;
   parts.board.position.set(0, 0.02, 0);
-  device.add(parts.board);
+  boardAssembly.add(parts.board);
 
   const traceGroup = new THREE.Group();
   // Horizontal traces — 20+
@@ -635,7 +641,7 @@ device.add(parts.shellRimTop, parts.shellRimBottom);
     traceGroup.add(tr);
   }
   parts.traces = traceGroup;
-  device.add(traceGroup);
+  boardAssembly.add(traceGroup);
 }
 
 // ── Phase 4A — SMD Capacitors (InstancedMesh) ──
@@ -656,7 +662,7 @@ device.add(parts.shellRimTop, parts.shellRimBottom);
   }
   smdMesh.instanceMatrix.needsUpdate = true;
   parts.smdComponents = smdMesh;
-  device.add(smdMesh);
+  boardAssembly.add(smdMesh);
 }
 
 // ── Phase 4A — SMD Resistors (InstancedMesh) ──
@@ -677,7 +683,7 @@ device.add(parts.shellRimTop, parts.shellRimBottom);
   }
   resMesh.instanceMatrix.needsUpdate = true;
   parts.resistors = resMesh;
-  device.add(resMesh);
+  boardAssembly.add(resMesh);
 }
 
 // ── Phase 4A — Solder Pads (InstancedMesh) ──
@@ -696,7 +702,7 @@ device.add(parts.shellRimTop, parts.shellRimBottom);
   }
   padMesh.instanceMatrix.needsUpdate = true;
   parts.solderPads = padMesh;
-  device.add(padMesh);
+  boardAssembly.add(padMesh);
 }
 
 // ── Neural Chip ──
@@ -734,7 +740,7 @@ device.add(parts.shellRimTop, parts.shellRimBottom);
   }
   bgaMesh.instanceMatrix.needsUpdate = true;
   parts.bgaPads = bgaMesh;
-  device.add(bgaMesh);
+  boardAssembly.add(bgaMesh);
 }
 
 // ── Memory Chip ──
@@ -832,12 +838,30 @@ device.add(parts.shellRimTop, parts.shellRimBottom);
     connGroup.add(pin);
   }
   parts.connectors = connGroup;
-  device.add(connGroup);
+  boardAssembly.add(connGroup);
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   5.  PARTICLES — removed for clean version
+   5.  POLAR NOISE — store base instance matrices for animation
    ═══════════════════════════════════════════════════════════════ */
+// Store base matrices for SMD components so we can apply noise each frame
+const smdBaseMatrices = [];
+const resBaseMatrices = [];
+{
+  const m = new THREE.Matrix4();
+  for (let i = 0; i < smdCount; i++) {
+    parts.smdComponents.getMatrixAt(i, m);
+    smdBaseMatrices.push(m.clone());
+  }
+  for (let i = 0; i < resCount; i++) {
+    parts.resistors.getMatrixAt(i, m);
+    resBaseMatrices.push(m.clone());
+  }
+}
+const _noisePos = new THREE.Vector3();
+const _noiseQuat = new THREE.Quaternion();
+const _noiseScale = new THREE.Vector3();
+const _noiseMat = new THREE.Matrix4();
 
 /* ═══════════════════════════════════════════════════════════════
    6.  POST-PROCESSING (Phase 3)
@@ -1102,8 +1126,7 @@ masterTL
 
 /* ── Layer 3 — Brain ── */
 masterTL
-  .to(parts.board.position, { y: 0.1, z: 0.15, duration: 10 }, 50)
-  .to(parts.traces.position, { y: 0.1, z: 0.15, duration: 10 }, 50)
+  .to(boardAssembly.position, { y: -0.35, z: -0.2, duration: 10 }, 50)
   .to(parts.neural.position, { x: -0.3, y: 0.55, z: 0.5, duration: 12, ease: 'power2.out' }, 52)
   .to(parts.neural.rotation, { y: Math.PI * 0.25, duration: 12 }, 52)
   .to(parts.memory.position, { x: 0.4, y: 0.45, z: 0.45, duration: 10 }, 53)
@@ -1144,8 +1167,9 @@ masterTL
 
 /* ── Reassemble ── */
 Object.entries(parts).forEach(([key, obj]) => {
-  if (key === 'traces' || key === 'smdComponents' ||
-      key === 'resistors' || key === 'solderPads' || key === 'bgaPads' || key === 'connectors') return;
+  if (key === 'board' || key === 'traces' || key === 'smdComponents' ||
+      key === 'resistors' || key === 'solderPads' || key === 'bgaPads' ||
+      key === 'connectors' || key === 'boardAssembly') return;
   masterTL.to(obj.position, {
     x: restState[key].px, y: restState[key].py, z: restState[key].pz,
     duration: 8, ease: 'power3.inOut'
@@ -1155,9 +1179,8 @@ Object.entries(parts).forEach(([key, obj]) => {
     duration: 8, ease: 'power3.inOut'
   }, 92);
 });
-masterTL.to(parts.traces.position, {
-  x: restState.traces.px, y: restState.traces.py, z: restState.traces.pz,
-  duration: 8, ease: 'power3.inOut'
+masterTL.to(boardAssembly.position, {
+  x: 0, y: 0, z: 0, duration: 8, ease: 'power3.inOut'
 }, 92);
 
 masterTL
@@ -1279,7 +1302,30 @@ function animate() {
   // Phase 5C — LiDAR pulse
   lidarEmitterMat.emissiveIntensity = 0.3 + Math.sin(t * 4.0) * 0.5;
 
-  // Particles — removed for clean version
+  // Polar noise on board-mounted components
+  const noiseAmp = 0.003; // subtle
+  const noiseSpeed = 0.8;
+  for (let i = 0; i < smdCount; i++) {
+    smdBaseMatrices[i].decompose(_noisePos, _noiseQuat, _noiseScale);
+    const seed = i * 1.37;
+    _noisePos.x += Math.sin(t * noiseSpeed + seed) * noiseAmp;
+    _noisePos.y += Math.sin(t * noiseSpeed * 1.3 + seed * 2.1) * noiseAmp;
+    _noisePos.z += Math.cos(t * noiseSpeed * 0.9 + seed * 0.7) * noiseAmp;
+    _noiseMat.compose(_noisePos, _noiseQuat, _noiseScale);
+    parts.smdComponents.setMatrixAt(i, _noiseMat);
+  }
+  parts.smdComponents.instanceMatrix.needsUpdate = true;
+
+  for (let i = 0; i < resCount; i++) {
+    resBaseMatrices[i].decompose(_noisePos, _noiseQuat, _noiseScale);
+    const seed = i * 2.03;
+    _noisePos.x += Math.cos(t * noiseSpeed * 1.1 + seed) * noiseAmp;
+    _noisePos.y += Math.sin(t * noiseSpeed * 0.7 + seed * 1.5) * noiseAmp;
+    _noisePos.z += Math.sin(t * noiseSpeed * 1.2 + seed * 0.9) * noiseAmp;
+    _noiseMat.compose(_noisePos, _noiseQuat, _noiseScale);
+    parts.resistors.setMatrixAt(i, _noiseMat);
+  }
+  parts.resistors.instanceMatrix.needsUpdate = true;
 
   // Phase 9B — Scroll progress indicator
   scrollFillEl.style.height = `${scrollProgress * 100}%`;
@@ -1369,10 +1415,13 @@ const loaderCanvas = document.getElementById('loader-canvas');
       requestAnimationFrame(tickLoader);
     } else {
       loaderBar.style.width = '100%';
+      // Anti-flicker: pre-compile all materials and render a warm-up frame
+      renderer.compile(scene, camera);
+      composer.render();
       setTimeout(() => {
         loaderEl.classList.add('hidden');
         animate();
-      }, 400);
+      }, 500);
     }
   }
 
