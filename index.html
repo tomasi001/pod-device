@@ -237,8 +237,7 @@ const smdCount = QUALITY === 'low' ? 20 : QUALITY === 'medium' ? 60 : 120;
 const resCount = QUALITY === 'low' ? 15 : QUALITY === 'medium' ? 40 : 80;
 const padCount = QUALITY === 'low' ? 50 : QUALITY === 'medium' ? 120 : 200;
 const bgaGridSize = QUALITY === 'low' ? 5 : 8;
-const innerParticleCount = QUALITY === 'low' ? 100 : QUALITY === 'medium' ? 400 : 800;
-const ambientParticleCount = QUALITY === 'low' ? 600 : 1800;
+// Particle counts — removed for clean version
 
 /* ═══════════════════════════════════════════════════════════════
    1.  THREE.JS SCENE + LIGHTING (Phase 1)
@@ -274,10 +273,7 @@ rimRect.position.set(0, -1, -4);
 rimRect.lookAt(0, 0, 0);
 scene.add(rimRect);
 
-// Inner glow (starts off, intensifies when shell opens)
-const innerGlow = new THREE.PointLight(0x7c6dfa, 0, 3, 2);
-innerGlow.position.set(0, 0, 0);
-scene.add(innerGlow);
+// Inner glow — removed for clean version
 
 /* ═══════════════════════════════════════════════════════════════
    2.  GEOMETRY HELPERS
@@ -458,10 +454,7 @@ const lidarEmitterMat = new THREE.MeshPhysicalMaterial({
   emissive: 0x6600aa, emissiveIntensity: 0.5,
 });
 
-// Inner glow sphere
-const glowMat = new THREE.MeshBasicMaterial({
-  color: 0x6e5dfa, transparent: true, opacity: 0
-});
+// Glow material — removed for clean version
 
 // SMD components (Phase 4)
 const smdMat = new THREE.MeshPhysicalMaterial({
@@ -552,10 +545,7 @@ parts.shellRimTop.rotation.x = Math.PI / 2;
 parts.shellRimBottom = parts.shellRimTop.clone();
 device.add(parts.shellRimTop, parts.shellRimBottom);
 
-// Inner glow sphere
-const glowGeo = new THREE.SphereGeometry(0.28, 32, 16);
-parts.innerGlowSphere = new THREE.Mesh(glowGeo, glowMat);
-device.add(parts.innerGlowSphere);
+// Inner glow sphere — removed for clean version
 
 // ── Antenna Array ──
 {
@@ -846,112 +836,8 @@ device.add(parts.innerGlowSphere);
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   5.  AMBIENT PARTICLES + INNER PARTICLES (Phase 6)
+   5.  PARTICLES — removed for clean version
    ═══════════════════════════════════════════════════════════════ */
-
-// Ambient (background) particles
-let ambientParticleMat;
-{
-  const pPos = new Float32Array(ambientParticleCount * 3);
-  const pSizes = new Float32Array(ambientParticleCount);
-  for (let i = 0; i < ambientParticleCount; i++) {
-    pPos[i * 3]     = (Math.random() - 0.5) * 12;
-    pPos[i * 3 + 1] = (Math.random() - 0.5) * 8;
-    pPos[i * 3 + 2] = (Math.random() - 0.5) * 12;
-    pSizes[i] = Math.random() * 2 + 0.5;
-  }
-  const pGeo = new THREE.BufferGeometry();
-  pGeo.setAttribute('position', new THREE.Float32BufferAttribute(pPos, 3));
-  pGeo.setAttribute('size', new THREE.Float32BufferAttribute(pSizes, 1));
-
-  ambientParticleMat = new THREE.ShaderMaterial({
-    transparent: true, depthWrite: false,
-    uniforms: {
-      uTime: { value: 0 },
-      uOpacity: { value: 0.35 },
-      uColor: { value: new THREE.Color(0x8888cc) },
-    },
-    vertexShader: `
-      attribute float size;
-      uniform float uTime;
-      varying float vAlpha;
-      void main() {
-        vec3 p = position;
-        p.y += sin(uTime * 0.15 + position.x * 0.5) * 0.15;
-        p.x += cos(uTime * 0.1 + position.z * 0.3) * 0.1;
-        vec4 mv = modelViewMatrix * vec4(p, 1.0);
-        gl_Position = projectionMatrix * mv;
-        gl_PointSize = size * (200.0 / -mv.z);
-        vAlpha = smoothstep(12.0, 2.0, -mv.z);
-      }
-    `,
-    fragmentShader: `
-      uniform float uOpacity;
-      uniform vec3 uColor;
-      varying float vAlpha;
-      void main() {
-        float d = length(gl_PointCoord - 0.5);
-        if (d > 0.5) discard;
-        float a = smoothstep(0.5, 0.1, d) * uOpacity * vAlpha;
-        gl_FragColor = vec4(uColor, a);
-      }
-    `
-  });
-  scene.add(new THREE.Points(pGeo, ambientParticleMat));
-}
-
-// Inner particles (Phase 6A — device-centred, activated on shell open)
-let innerParticleMat;
-{
-  const iPos = new Float32Array(innerParticleCount * 3);
-  const iSizes = new Float32Array(innerParticleCount);
-  for (let i = 0; i < innerParticleCount; i++) {
-    iPos[i * 3]     = (Math.random() - 0.5) * 2.0;
-    iPos[i * 3 + 1] = (Math.random() - 0.5) * 2.0;
-    iPos[i * 3 + 2] = (Math.random() - 0.5) * 2.0;
-    iSizes[i] = Math.random() * 1.5 + 0.3;
-  }
-  const iGeo = new THREE.BufferGeometry();
-  iGeo.setAttribute('position', new THREE.Float32BufferAttribute(iPos, 3));
-  iGeo.setAttribute('size', new THREE.Float32BufferAttribute(iSizes, 1));
-
-  innerParticleMat = new THREE.ShaderMaterial({
-    transparent: true, depthWrite: false,
-    uniforms: {
-      uTime: { value: 0 },
-      uOpacity: { value: 0.0 },
-      uColor: { value: new THREE.Color(0xa78bfa) },
-    },
-    vertexShader: `
-      attribute float size;
-      uniform float uTime;
-      varying float vAlpha;
-      void main() {
-        vec3 p = position;
-        float angle = uTime * 0.3 + position.y * 2.0;
-        p.x += sin(angle) * 0.08;
-        p.z += cos(angle) * 0.08;
-        p.y += sin(uTime * 0.2 + position.x) * 0.12;
-        vec4 mv = modelViewMatrix * vec4(p, 1.0);
-        gl_Position = projectionMatrix * mv;
-        gl_PointSize = size * (150.0 / -mv.z);
-        vAlpha = smoothstep(5.0, 0.5, -mv.z);
-      }
-    `,
-    fragmentShader: `
-      uniform float uOpacity;
-      uniform vec3 uColor;
-      varying float vAlpha;
-      void main() {
-        float d = length(gl_PointCoord - 0.5);
-        if (d > 0.5) discard;
-        float a = smoothstep(0.5, 0.0, d) * uOpacity * vAlpha;
-        gl_FragColor = vec4(uColor, a);
-      }
-    `
-  });
-  scene.add(new THREE.Points(iGeo, innerParticleMat));
-}
 
 /* ═══════════════════════════════════════════════════════════════
    6.  POST-PROCESSING (Phase 3)
@@ -1186,12 +1072,7 @@ masterTL
   .to(flowProxy, { intensity: 1.0, duration: 10 }, 50)
   .to(flowProxy, { intensity: 0, duration: 6 }, 93);
 
-// Phase 6A — Inner particle opacity
-const innerPProxy = { opacity: 0 };
-masterTL
-  .to(innerPProxy, { opacity: 0.5, duration: 8 }, 10)
-  .to(innerPProxy, { opacity: 0.7, duration: 10 }, 78)
-  .to(innerPProxy, { opacity: 0, duration: 6 }, 92);
+// Inner particles — removed for clean version
 
 /* ── Shell separates ── */
 masterTL
@@ -1199,8 +1080,7 @@ masterTL
   .to(parts.shellBottom.position, { y: -0.8, duration: 12, ease: 'power3.inOut' }, 10)
   .to(parts.shellRimTop.position, { y: 0.8, duration: 12, ease: 'power3.inOut' }, 10)
   .to(parts.shellRimBottom.position, { y: -0.8, duration: 12, ease: 'power3.inOut' }, 10)
-  .to(innerGlow, { intensity: 3, duration: 8 }, 12)
-  .to(glowMat, { opacity: 0.15, duration: 8 }, 12);
+;
 
 /* ── Layer 1 — Antenna + Haptics ── */
 masterTL
@@ -1264,7 +1144,7 @@ masterTL
 
 /* ── Reassemble ── */
 Object.entries(parts).forEach(([key, obj]) => {
-  if (key === 'innerGlowSphere' || key === 'traces' || key === 'smdComponents' ||
+  if (key === 'traces' || key === 'smdComponents' ||
       key === 'resistors' || key === 'solderPads' || key === 'bgaPads' || key === 'connectors') return;
   masterTL.to(obj.position, {
     x: restState[key].px, y: restState[key].py, z: restState[key].pz,
@@ -1281,8 +1161,6 @@ masterTL.to(parts.traces.position, {
 }, 92);
 
 masterTL
-  .to(innerGlow, { intensity: 0, duration: 6 }, 93)
-  .to(glowMat, { opacity: 0, duration: 6 }, 93)
   .to(labelVisibility, {
     antenna: 0, hapticL: 0, hapticR: 0, battery: 0, flex: 0,
     board: 0, neural: 0, memory: 0, wireless: 0, thermal: 0,
@@ -1401,12 +1279,7 @@ function animate() {
   // Phase 5C — LiDAR pulse
   lidarEmitterMat.emissiveIntensity = 0.3 + Math.sin(t * 4.0) * 0.5;
 
-  // Phase 6A — Inner particle opacity
-  innerParticleMat.uniforms.uOpacity.value = innerPProxy.opacity;
-  innerParticleMat.uniforms.uTime.value = t;
-
-  // Ambient particles
-  ambientParticleMat.uniforms.uTime.value = t;
+  // Particles — removed for clean version
 
   // Phase 9B — Scroll progress indicator
   scrollFillEl.style.height = `${scrollProgress * 100}%`;
