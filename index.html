@@ -1042,16 +1042,31 @@ function updateLabels() {
 /* ═══════════════════════════════════════════════════════════════
    9.  CAMERA SPLINE PATH (Phase 8)
    ═══════════════════════════════════════════════════════════════ */
+// Camera choreography — 10 control points for cinematic precision
+// The spline gives smooth interpolation; extra points at critical
+// moments (zoom-in hold, zoom-out ramp) let us shape the velocity.
 const cameraPath = new THREE.CatmullRomCurve3([
+  // 0 — Hero: centred, medium distance, slight elevation
   new THREE.Vector3(0, 0.3, 3.8),
-  new THREE.Vector3(1.5, 0.6, 3.0),
-  new THREE.Vector3(2.2, 0.4, 2.0),
-  new THREE.Vector3(-1.8, -0.3, 2.5),
-  new THREE.Vector3(0.5, 1.5, 2.8),
-  new THREE.Vector3(1.8, 0.3, 2.5),
-  new THREE.Vector3(0, 0.6, 4.5),
+  // 1 — Shell opens: gentle orbit right, pull back a touch to frame separation
+  new THREE.Vector3(1.0, 0.45, 3.4),
+  // 2 — Connectivity: orbit further right, move in slightly for antenna detail
+  new THREE.Vector3(1.8, 0.3, 2.4),
+  // 3 — Power: swing left and drop to frame battery falling away
+  new THREE.Vector3(-1.4, -0.15, 2.6),
+  // 4 — Brain approach: begin centring, start pulling in
+  new THREE.Vector3(0.2, 0.15, 1.8),
+  // 5 — Brain ZOOM: intimate close-up on floating central components
+  new THREE.Vector3(0.08, 0.1, 1.2),
+  // 6 — Senses: slow pull-back begins, gentle orbit
+  new THREE.Vector3(0.7, 0.2, 2.2),
+  // 7 — Full explode: wide pull-back, slight elevation to see everything
+  new THREE.Vector3(0, 0.55, 4.8),
+  // 8 — Hold wide: linger on the full constellation
+  new THREE.Vector3(-0.2, 0.5, 4.6),
+  // 9 — Reassemble: snap back to hero framing
   new THREE.Vector3(0, 0.3, 3.8),
-], false, 'catmullrom', 0.5);
+], false, 'catmullrom', 0.35); // lower tension = tighter curves at control points
 
 const cameraProxy = { progress: 0 };
 
@@ -1080,21 +1095,21 @@ masterTL
   .to(keyRect, { intensity: 6, duration: 15 }, 48)     // even for brain
   .to(fillRect, { intensity: 4, duration: 15 }, 48)
   .to(rimRect, { intensity: 3, duration: 15 }, 48)
-  .to(keyRect, { intensity: 8, duration: 8 }, 92)      // return to hero
-  .to(fillRect, { intensity: 3, duration: 8 }, 92)
-  .to(rimRect, { intensity: 5, duration: 8 }, 92);
+  .to(keyRect, { intensity: 8, duration: 4 }, 95)      // snap back to hero
+  .to(fillRect, { intensity: 3, duration: 4 }, 95)
+  .to(rimRect, { intensity: 5, duration: 4 }, 95);
 
 // Phase 5A — Fresnel glow follows shell open
 const fresnelProxy = { intensity: 0 };
 masterTL
   .to(fresnelProxy, { intensity: 0.6, duration: 10 }, 10)
-  .to(fresnelProxy, { intensity: 0, duration: 6 }, 93);
+  .to(fresnelProxy, { intensity: 0, duration: 3 }, 95);
 
 // Phase 5B — Gold trace data flow
 const flowProxy = { intensity: 0 };
 masterTL
   .to(flowProxy, { intensity: 1.0, duration: 10 }, 50)
-  .to(flowProxy, { intensity: 0, duration: 6 }, 93);
+  .to(flowProxy, { intensity: 0, duration: 3 }, 95);
 
 // Inner particles — removed for clean version
 
@@ -1165,30 +1180,31 @@ masterTL
     camera: 1, mic: 0.8, speaker: 0.8, lidar: 1, duration: 6
   }, 82);
 
-/* ── Reassemble ── */
+/* ── Reassemble — rapid snap-back ── */
 Object.entries(parts).forEach(([key, obj]) => {
   if (key === 'board' || key === 'traces' || key === 'smdComponents' ||
       key === 'resistors' || key === 'solderPads' || key === 'bgaPads' ||
       key === 'connectors' || key === 'boardAssembly') return;
   masterTL.to(obj.position, {
     x: restState[key].px, y: restState[key].py, z: restState[key].pz,
-    duration: 8, ease: 'power3.inOut'
-  }, 92);
+    duration: 4, ease: 'power4.in'
+  }, 95);
   masterTL.to(obj.rotation, {
     x: restState[key].rx, y: restState[key].ry, z: restState[key].rz,
-    duration: 8, ease: 'power3.inOut'
-  }, 92);
+    duration: 4, ease: 'power4.in'
+  }, 95);
 });
 masterTL.to(boardAssembly.position, {
-  x: 0, y: 0, z: 0, duration: 8, ease: 'power3.inOut'
-}, 92);
+  x: 0, y: 0, z: 0, duration: 4, ease: 'power4.in'
+}, 95);
 
+// Labels snap off immediately as collapse begins
 masterTL
   .to(labelVisibility, {
     antenna: 0, hapticL: 0, hapticR: 0, battery: 0, flex: 0,
     board: 0, neural: 0, memory: 0, wireless: 0, thermal: 0,
-    camera: 0, mic: 0, speaker: 0, lidar: 0, duration: 5
-  }, 93);
+    camera: 0, mic: 0, speaker: 0, lidar: 0, duration: 2
+  }, 95);
 
 /* ── Text section animations ── */
 document.querySelectorAll('.section-content').forEach((el) => {
@@ -1254,8 +1270,12 @@ function animate() {
   const dt = clock.getDelta();
   const t = clock.getElapsedTime();
 
-  // Idle rotation
-  const rotSpeed = scrollProgress < 0.08 ? 0.15 : scrollProgress > 0.92 ? 0.15 : 0.04;
+  // Idle rotation — varies with scroll phase
+  const rotSpeed = scrollProgress < 0.08 ? 0.15         // hero: gentle spin
+    : scrollProgress > 0.95 ? 0.35                       // reassemble: rapid spin
+    : scrollProgress > 0.48 && scrollProgress < 0.65 ? 0.02  // brain zoom: near-still
+    : scrollProgress > 0.78 ? 0.025                      // full explode: slow drift
+    : 0.05;                                               // default orbit
   idleRotY += rotSpeed * dt;
   device.rotation.y = idleRotY;
 
