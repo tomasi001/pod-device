@@ -9,8 +9,7 @@
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 html{font-family:'Inter',system-ui,sans-serif;background:#050510;color:#fff;
-  scroll-behavior:auto; /* Lenis handles smooth scroll */
-  overflow-x:hidden}
+  scroll-behavior:auto;overflow-x:hidden}
 body{background:#050510;overflow-x:hidden}
 
 /* ── Loading Screen ── */
@@ -18,7 +17,8 @@ body{background:#050510;overflow-x:hidden}
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   transition:opacity .8s ease,visibility .8s ease}
 #loader.hidden{opacity:0;visibility:hidden;pointer-events:none}
-#loader .bar-track{width:200px;height:2px;background:rgba(255,255,255,.1);border-radius:1px;overflow:hidden;margin-top:24px}
+#loader canvas{width:160px;height:160px;margin-bottom:16px}
+#loader .bar-track{width:200px;height:2px;background:rgba(255,255,255,.1);border-radius:1px;overflow:hidden;margin-top:16px}
 #loader .bar-fill{height:100%;width:0%;background:linear-gradient(90deg,#6e7bff,#a78bfa);border-radius:1px;transition:width .3s ease}
 #loader p{font-size:11px;letter-spacing:4px;text-transform:uppercase;color:rgba(255,255,255,.4);margin-top:12px}
 
@@ -63,6 +63,10 @@ p{font-size:clamp(14px,1.6vw,18px);line-height:1.7;color:rgba(255,255,255,.5);
 .label-3d .label-text{font-size:10px;letter-spacing:2px;text-transform:uppercase;
   color:rgba(255,255,255,.7);text-align:center}
 
+/* ── Scroll Progress ── */
+#scroll-progress{position:fixed;top:0;right:0;width:2px;height:100vh;z-index:20;pointer-events:none}
+#scroll-fill{width:100%;height:0%;background:linear-gradient(180deg,#6e7bff,#a78bfa);transition:height .1s ease}
+
 /* ── Responsive ── */
 @media(max-width:768px){
   .section{padding:0 6vw}
@@ -75,12 +79,19 @@ p{font-size:clamp(14px,1.6vw,18px);line-height:1.7;color:rgba(255,255,255,.5);
 
 <!-- Loading -->
 <div id="loader">
+  <canvas id="loader-canvas" width="160" height="160"></canvas>
   <p>Loading</p>
   <div class="bar-track"><div class="bar-fill" id="loader-bar"></div></div>
 </div>
 
 <!-- Canvas -->
 <canvas id="c"></canvas>
+
+<!-- Scroll Progress -->
+<div id="scroll-progress"><div id="scroll-fill"></div></div>
+
+<!-- SVG Label Lines -->
+<svg id="label-lines" style="position:fixed;inset:0;z-index:9;pointer-events:none;width:100%;height:100%"></svg>
 
 <!-- Scroll Sections -->
 <div class="scroll-container">
@@ -191,9 +202,11 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 
 /* ═══════════════════════════════════════════════════════════════
-   0.  GLOBALS
+   0.  GLOBALS & QUALITY TIERS (Phase 10)
    ═══════════════════════════════════════════════════════════════ */
 const { gsap: G, ScrollTrigger: ST } = window;
 G.registerPlugin(ST);
@@ -203,8 +216,32 @@ const isMobile = W < 768;
 const DPR = Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2);
 const canvas = document.getElementById('c');
 
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: !isMobile, alpha: false });
+renderer.setPixelRatio(DPR);
+renderer.setSize(W, H);
+renderer.toneMapping = THREE.NeutralToneMapping; // Phase 3B — Khronos PBR Neutral
+renderer.toneMappingExposure = 1.0;
+
+// Phase 10A — Quality tiers based on GPU
+const QUALITY = (() => {
+  if (isMobile) return 'low';
+  const gl = renderer.getContext();
+  const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+  const gpu = debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : '';
+  if (/Intel|Mali|Adreno/i.test(gpu)) return 'medium';
+  return 'high';
+})();
+
+const shellSegs = QUALITY === 'low' ? 48 : QUALITY === 'medium' ? 64 : 72;
+const smdCount = QUALITY === 'low' ? 20 : QUALITY === 'medium' ? 60 : 120;
+const resCount = QUALITY === 'low' ? 15 : QUALITY === 'medium' ? 40 : 80;
+const padCount = QUALITY === 'low' ? 50 : QUALITY === 'medium' ? 120 : 200;
+const bgaGridSize = QUALITY === 'low' ? 5 : 8;
+const innerParticleCount = QUALITY === 'low' ? 100 : QUALITY === 'medium' ? 400 : 800;
+const ambientParticleCount = QUALITY === 'low' ? 600 : 1800;
+
 /* ═══════════════════════════════════════════════════════════════
-   1.  THREE.JS SCENE
+   1.  THREE.JS SCENE + LIGHTING (Phase 1)
    ═══════════════════════════════════════════════════════════════ */
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x050510);
@@ -213,27 +250,29 @@ scene.fog = new THREE.FogExp2(0x050510, 0.06);
 const camera = new THREE.PerspectiveCamera(40, W / H, 0.1, 100);
 camera.position.set(0, 0.3, 3.8);
 
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: !isMobile, alpha: false });
-renderer.setPixelRatio(DPR);
-renderer.setSize(W, H);
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.1;
+// Phase 1A — RoomEnvironment (procedural studio HDRI)
+const pmremGenerator = new THREE.PMREMGenerator(renderer);
+const envTexture = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environment = envTexture;
+pmremGenerator.dispose();
 
-/* ── Lighting ── */
-const keyLight = new THREE.DirectionalLight(0xfff5ee, 2.2);
-keyLight.position.set(3, 4, 5);
-scene.add(keyLight);
+// Phase 1A — RectAreaLights for product lighting
+RectAreaLightUniformsLib.init();
 
-const fillLight = new THREE.DirectionalLight(0xb0c4de, 0.8);
-fillLight.position.set(-4, 1, -3);
-scene.add(fillLight);
+const keyRect = new THREE.RectAreaLight(0xfff8f0, 8, 4, 4);
+keyRect.position.set(3, 4, 4);
+keyRect.lookAt(0, 0, 0);
+scene.add(keyRect);
 
-const rimLight = new THREE.DirectionalLight(0xa78bfa, 1.0);
-rimLight.position.set(0, -2, -4);
-scene.add(rimLight);
+const fillRect = new THREE.RectAreaLight(0xb8c8e8, 3, 3, 3);
+fillRect.position.set(-4, 1, -2);
+fillRect.lookAt(0, 0, 0);
+scene.add(fillRect);
 
-const ambientLight = new THREE.AmbientLight(0x1a1a3e, 0.4);
-scene.add(ambientLight);
+const rimRect = new THREE.RectAreaLight(0xa78bfa, 5, 1, 4);
+rimRect.position.set(0, -1, -4);
+rimRect.lookAt(0, 0, 0);
+scene.add(rimRect);
 
 // Inner glow (starts off, intensifies when shell opens)
 const innerGlow = new THREE.PointLight(0x7c6dfa, 0, 3, 2);
@@ -248,17 +287,10 @@ function sgnPow(base, exp) {
   return Math.sign(base) * Math.pow(Math.abs(base), exp);
 }
 
-/**
- * Superellipsoid half-shell.
- * rx, ry, rz = radii (x-width, z-depth, y-height)
- * e1 = latitude squareness, e2 = longitude squareness
- * isTop: true = upper half (u: 0→π/2), false = lower half (u: -π/2→0)
- */
 function createShellHalf(rx, ry, rz, e1, e2, isTop, segs = 64) {
   const rows = Math.floor(segs / 2), cols = segs;
   const uStart = isTop ? 0 : -Math.PI / 2;
   const uEnd   = isTop ? Math.PI / 2 : 0;
-
   const pos = [], nrm = [], uv = [], idx = [];
 
   for (let i = 0; i <= rows; i++) {
@@ -267,7 +299,6 @@ function createShellHalf(rx, ry, rz, e1, e2, isTop, segs = 64) {
     for (let j = 0; j <= cols; j++) {
       const v = -Math.PI + 2 * Math.PI * (j / cols);
       const cv = Math.cos(v), sv = Math.sin(v);
-
       const x = rx * sgnPow(cu, e1) * sgnPow(cv, e2);
       const y = rz * sgnPow(su, e1);
       const z = ry * sgnPow(cu, e1) * sgnPow(sv, e2);
@@ -278,11 +309,9 @@ function createShellHalf(rx, ry, rz, e1, e2, isTop, segs = 64) {
       let nz = sgnPow(cu, 2 - e1) * sgnPow(sv, 2 - e2) / ry;
       const len = Math.hypot(nx, ny, nz) || 1;
       nrm.push(nx / len, ny / len, nz / len);
-
       uv.push(j / cols, i / rows);
     }
   }
-
   for (let i = 0; i < rows; i++) {
     for (let j = 0; j < cols; j++) {
       const a = i * (cols + 1) + j;
@@ -290,17 +319,15 @@ function createShellHalf(rx, ry, rz, e1, e2, isTop, segs = 64) {
       idx.push(a, b, a + 1, b, b + 1, a + 1);
     }
   }
-
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   geo.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
   geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   geo.setIndex(idx);
-  geo.computeVertexNormals(); // smooth out any artefacts
+  geo.computeVertexNormals();
   return geo;
 }
 
-/** Rounded rectangle extrusion */
 function roundedBoxGeo(w, h, d, r) {
   const shape = new THREE.Shape();
   const hw = w / 2, hh = h / 2;
@@ -314,14 +341,12 @@ function roundedBoxGeo(w, h, d, r) {
   shape.quadraticCurveTo(-hw, hh, -hw, hh - r);
   shape.lineTo(-hw, -hh + r);
   shape.quadraticCurveTo(-hw, -hh, -hw + r, -hh);
-
   return new THREE.ExtrudeGeometry(shape, {
     depth: d, bevelEnabled: true, bevelThickness: 0.008,
     bevelSize: 0.008, bevelSegments: 3
   });
 }
 
-/** Flex cable via TubeGeometry */
 function cableGeo(points, radius = 0.01) {
   const curve = new THREE.CatmullRomCurve3(
     points.map(p => new THREE.Vector3(p[0], p[1], p[2]))
@@ -330,95 +355,204 @@ function cableGeo(points, radius = 0.01) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   3.  MATERIALS
+   3.  MATERIALS (Phase 2 — all MeshPhysicalMaterial)
    ═══════════════════════════════════════════════════════════════ */
+
+// Shell — premium ceramic/glass clearcoat with pearlescent sheen
 const shellMat = new THREE.MeshPhysicalMaterial({
-  color: 0xeeeef2, roughness: 0.28, metalness: 0.08,
-  clearcoat: 0.6, clearcoatRoughness: 0.12, side: THREE.DoubleSide,
+  color: 0xf0f0f4, roughness: 0.15, metalness: 0.02,
+  clearcoat: 1.0, clearcoatRoughness: 0.05,
+  sheen: 0.3, sheenRoughness: 0.4,
+  sheenColor: new THREE.Color(0xd0d0ff),
+  reflectivity: 0.9, envMapIntensity: 1.2, side: THREE.DoubleSide,
 });
 
-const pcbMat = new THREE.MeshStandardMaterial({
-  color: 0x0c3320, roughness: 0.7, metalness: 0.15
+// PCB — dark green FR4 with solder-mask gloss
+const pcbMat = new THREE.MeshPhysicalMaterial({
+  color: 0x0a3520, roughness: 0.65, metalness: 0.0,
+  clearcoat: 0.4, clearcoatRoughness: 0.3,
+  specularIntensity: 0.3, specularColor: new THREE.Color(0x225533),
 });
 
-const chipMat = new THREE.MeshStandardMaterial({
-  color: 0x15152e, roughness: 0.25, metalness: 0.85
+// Chips — silicon wafer iridescence
+const chipMat = new THREE.MeshPhysicalMaterial({
+  color: 0x12122a, roughness: 0.12, metalness: 0.7,
+  iridescence: 0.4, iridescenceIOR: 1.3,
+  iridescenceThicknessRange: [200, 500],
+  specularIntensity: 1.2, envMapIntensity: 1.5,
 });
 
-const chipTopMat = new THREE.MeshStandardMaterial({
-  color: 0x2a2a3e, roughness: 0.15, metalness: 0.9
+const chipTopMat = new THREE.MeshPhysicalMaterial({
+  color: 0x22223a, roughness: 0.08, metalness: 0.8,
+  iridescence: 0.6, iridescenceIOR: 1.4,
+  iridescenceThicknessRange: [150, 400],
+  clearcoat: 0.3, clearcoatRoughness: 0.1, envMapIntensity: 1.8,
 });
 
-const batteryMat = new THREE.MeshStandardMaterial({
-  color: 0xbbbcc5, roughness: 0.18, metalness: 0.92
+// Battery — brushed metal anisotropic
+const batteryMat = new THREE.MeshPhysicalMaterial({
+  color: 0xc0c0ca, roughness: 0.1, metalness: 0.95,
+  anisotropy: 0.6, anisotropyRotation: 0,
+  clearcoat: 0.2, clearcoatRoughness: 0.15, envMapIntensity: 1.4,
 });
 
-const cableMat = new THREE.MeshStandardMaterial({
-  color: 0xe89030, roughness: 0.55, metalness: 0.25
+// Flex cables — sheen
+const cableMat = new THREE.MeshPhysicalMaterial({
+  color: 0xe89030, roughness: 0.45, metalness: 0.15,
+  sheen: 0.5, sheenRoughness: 0.6,
+  sheenColor: new THREE.Color(0xffcc88),
 });
 
-const antennaMat = new THREE.MeshStandardMaterial({
-  color: 0xc8a84e, roughness: 0.2, metalness: 0.9
+// Antenna — polished gold
+const antennaMat = new THREE.MeshPhysicalMaterial({
+  color: 0xc8a84e, roughness: 0.15, metalness: 1.0,
+  specularIntensity: 1.3, specularColor: new THREE.Color(0xffe088),
+  envMapIntensity: 1.5,
 });
 
-const hapticMat = new THREE.MeshStandardMaterial({
-  color: 0x888890, roughness: 0.15, metalness: 0.95
+// Haptic engines — machined steel
+const hapticMat = new THREE.MeshPhysicalMaterial({
+  color: 0x888890, roughness: 0.08, metalness: 0.98,
+  anisotropy: 0.4, clearcoat: 0.5, clearcoatRoughness: 0.08,
+  envMapIntensity: 1.6,
 });
 
-const cameraMat = new THREE.MeshStandardMaterial({
-  color: 0x222228, roughness: 0.35, metalness: 0.65
+// Camera housing — dark glossy
+const cameraMat = new THREE.MeshPhysicalMaterial({
+  color: 0x1a1a22, roughness: 0.25, metalness: 0.7,
+  clearcoat: 0.8, clearcoatRoughness: 0.05, envMapIntensity: 1.2,
 });
 
+// Lens — flint glass with chromatic dispersion
 const lensMat = new THREE.MeshPhysicalMaterial({
-  color: 0x0a0a30, roughness: 0.02, metalness: 0.05,
-  transmission: 0.92, thickness: 0.3, ior: 1.8
+  color: 0x080830, roughness: 0.0, metalness: 0.0,
+  transmission: 0.95, thickness: 1.5, ior: 1.62,
+  attenuationColor: new THREE.Color(0xaabbff), attenuationDistance: 1.0,
+  specularIntensity: 1.0, envMapIntensity: 2.0,
 });
 
-const copperMat = new THREE.MeshStandardMaterial({
-  color: 0xb87333, roughness: 0.12, metalness: 0.95
+// Copper heat spreader
+const copperMat = new THREE.MeshPhysicalMaterial({
+  color: 0xb87333, roughness: 0.08, metalness: 1.0,
+  specularIntensity: 1.5, specularColor: new THREE.Color(0xffaa66),
+  envMapIntensity: 1.8,
 });
 
-const speakerMat = new THREE.MeshStandardMaterial({
-  color: 0x2a2a30, roughness: 0.5, metalness: 0.4
+// Speaker
+const speakerMat = new THREE.MeshPhysicalMaterial({
+  color: 0x222228, roughness: 0.4, metalness: 0.5,
+  clearcoat: 0.3, clearcoatRoughness: 0.2,
 });
 
-const goldTraceMat = new THREE.MeshStandardMaterial({
-  color: 0xdaa520, roughness: 0.15, metalness: 0.95
+// Gold traces — animated emissive via onBeforeCompile (Phase 5B)
+const goldTraceMat = new THREE.MeshPhysicalMaterial({
+  color: 0xdaa520, roughness: 0.1, metalness: 1.0,
+  clearcoat: 0.3, clearcoatRoughness: 0.4,
+  specularIntensity: 1.5, specularColor: new THREE.Color(0xffdd66),
+  envMapIntensity: 1.6,
 });
 
+// LiDAR emitter — pulsing emissive (Phase 5C)
+const lidarEmitterMat = new THREE.MeshPhysicalMaterial({
+  color: 0x200020, roughness: 0.2, metalness: 0.5,
+  emissive: 0x6600aa, emissiveIntensity: 0.5,
+});
+
+// Inner glow sphere
 const glowMat = new THREE.MeshBasicMaterial({
   color: 0x6e5dfa, transparent: true, opacity: 0
 });
+
+// SMD components (Phase 4)
+const smdMat = new THREE.MeshPhysicalMaterial({
+  color: 0x2a2a35, roughness: 0.3, metalness: 0.6,
+  clearcoat: 0.4, clearcoatRoughness: 0.2,
+});
+const resMat = new THREE.MeshPhysicalMaterial({
+  color: 0x8b7355, roughness: 0.5, metalness: 0.2,
+  clearcoat: 0.2, clearcoatRoughness: 0.3,
+});
+const solderPadMat = new THREE.MeshPhysicalMaterial({
+  color: 0xc0c0c0, roughness: 0.2, metalness: 0.9,
+});
+const bgaPadMat = new THREE.MeshPhysicalMaterial({
+  color: 0xc0c0c0, roughness: 0.15, metalness: 0.95,
+});
+const portMat = new THREE.MeshPhysicalMaterial({
+  color: 0x0a0a0a, roughness: 0.3, metalness: 0.8,
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   Phase 5A — Fresnel edge glow on shell (onBeforeCompile)
+   ═══════════════════════════════════════════════════════════════ */
+shellMat.onBeforeCompile = (shader) => {
+  shader.uniforms.uFresnelPower = { value: 3.0 };
+  shader.uniforms.uFresnelColor = { value: new THREE.Color(0x6e5dfa) };
+  shader.uniforms.uFresnelIntensity = { value: 0.0 };
+
+  shader.fragmentShader = shader.fragmentShader.replace(
+    'void main() {',
+    `uniform float uFresnelPower;
+     uniform vec3 uFresnelColor;
+     uniform float uFresnelIntensity;
+     void main() {`
+  );
+  shader.fragmentShader = shader.fragmentShader.replace(
+    '#include <dithering_fragment>',
+    `vec3 fViewDir = normalize(vViewPosition);
+     float fFresnel = pow(1.0 - abs(dot(fViewDir, normalize(vNormal))), uFresnelPower);
+     gl_FragColor.rgb += uFresnelColor * fFresnel * uFresnelIntensity;
+     #include <dithering_fragment>`
+  );
+  shellMat.userData.shader = shader;
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   Phase 5B — Animated data flow on gold traces
+   ═══════════════════════════════════════════════════════════════ */
+goldTraceMat.onBeforeCompile = (shader) => {
+  shader.uniforms.uTime = { value: 0 };
+  shader.uniforms.uFlowIntensity = { value: 0.0 };
+
+  shader.fragmentShader = shader.fragmentShader.replace(
+    'void main() {',
+    `uniform float uTime;
+     uniform float uFlowIntensity;
+     void main() {`
+  );
+  shader.fragmentShader = shader.fragmentShader.replace(
+    '#include <emissivemap_fragment>',
+    `#include <emissivemap_fragment>
+     float flow = sin(vUv.x * 40.0 - uTime * 3.0) * 0.5 + 0.5;
+     flow = pow(flow, 4.0);
+     totalEmissiveRadiance += vec3(0.9, 0.7, 0.2) * flow * uFlowIntensity;`
+  );
+  goldTraceMat.userData.shader = shader;
+};
 
 /* ═══════════════════════════════════════════════════════════════
    4.  BUILD THE DEVICE
    ═══════════════════════════════════════════════════════════════ */
 const device = new THREE.Group();
 scene.add(device);
-
-// Track all animated parts for scroll-driven explode
 const parts = {};
 
-// Pod shape params — phone-sized, Apple Mouse style, symmetric bevel
 const RX = 0.72, RY = 0.42, RZ = 0.18;
 const E1 = 0.38, E2 = 0.52;
-const shellSegs = isMobile ? 48 : 72;
 
 // ── Shell ──
 parts.shellTop = new THREE.Mesh(createShellHalf(RX, RY, RZ, E1, E2, true, shellSegs), shellMat);
 parts.shellBottom = new THREE.Mesh(createShellHalf(RX, RY, RZ, E1, E2, false, shellSegs), shellMat);
 device.add(parts.shellTop, parts.shellBottom);
 
-// Shell rim (thin ring at equator)
-const rimGeo = new THREE.TorusGeometry(
-  (RX + RY) / 2 * 0.72, 0.006, 8, 72
-);
+// Shell rim
+const rimGeo = new THREE.TorusGeometry((RX + RY) / 2 * 0.72, 0.006, 8, 72);
 parts.shellRimTop = new THREE.Mesh(rimGeo, hapticMat);
 parts.shellRimTop.rotation.x = Math.PI / 2;
 parts.shellRimBottom = parts.shellRimTop.clone();
 device.add(parts.shellRimTop, parts.shellRimBottom);
 
-// Inner glow sphere (emissive core)
+// Inner glow sphere
 const glowGeo = new THREE.SphereGeometry(0.28, 32, 16);
 parts.innerGlowSphere = new THREE.Mesh(glowGeo, glowMat);
 device.add(parts.innerGlowSphere);
@@ -426,12 +560,10 @@ device.add(parts.innerGlowSphere);
 // ── Antenna Array ──
 {
   const antennaGroup = new THREE.Group();
-  const antennaCount = 24;
-  for (let i = 0; i < antennaCount; i++) {
-    const angle = (i / antennaCount) * Math.PI * 2;
+  for (let i = 0; i < 24; i++) {
+    const angle = (i / 24) * Math.PI * 2;
     const aRad = (RX + RY) / 2 * 0.68;
-    const stripGeo = new THREE.BoxGeometry(0.025, 0.008, 0.003);
-    const strip = new THREE.Mesh(stripGeo, antennaMat);
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.008, 0.003), antennaMat);
     strip.position.set(Math.cos(angle) * aRad, 0, Math.sin(angle) * aRad);
     strip.rotation.y = -angle;
     antennaGroup.add(strip);
@@ -446,7 +578,6 @@ device.add(parts.innerGlowSphere);
   parts.hapticL = new THREE.Mesh(hapGeo, hapticMat);
   parts.hapticL.position.set(-0.45, 0, 0);
   parts.hapticL.rotation.z = Math.PI / 2;
-
   parts.hapticR = parts.hapticL.clone();
   parts.hapticR.position.set(0.45, 0, 0);
   device.add(parts.hapticL, parts.hapticR);
@@ -454,8 +585,7 @@ device.add(parts.innerGlowSphere);
 
 // ── Battery ──
 {
-  const batGeo = roundedBoxGeo(0.9, 0.55, 0.04, 0.06);
-  parts.battery = new THREE.Mesh(batGeo, batteryMat);
+  parts.battery = new THREE.Mesh(roundedBoxGeo(0.9, 0.55, 0.04, 0.06), batteryMat);
   parts.battery.rotation.x = Math.PI / 2;
   parts.battery.position.set(0, -0.04, 0);
   device.add(parts.battery);
@@ -464,62 +594,128 @@ device.add(parts.innerGlowSphere);
 // ── Flex Cables ──
 {
   parts.flexMain = new THREE.Mesh(
-    cableGeo([
-      [0.15, 0.02, 0], [0.3, 0.04, 0.05], [0.4, 0.02, 0.12],
-      [0.35, -0.01, 0.2], [0.2, -0.03, 0.15]
-    ], 0.008),
+    cableGeo([[0.15,0.02,0],[0.3,0.04,0.05],[0.4,0.02,0.12],[0.35,-0.01,0.2],[0.2,-0.03,0.15]], 0.008),
     cableMat
   );
   parts.flexSensor = new THREE.Mesh(
-    cableGeo([
-      [-0.1, 0.01, 0.05], [-0.2, 0.03, 0.15], [-0.35, 0.02, 0.1],
-      [-0.32, 0, -0.05]
-    ], 0.006),
+    cableGeo([[-0.1,0.01,0.05],[-0.2,0.03,0.15],[-0.35,0.02,0.1],[-0.32,0,-0.05]], 0.006),
     cableMat
   );
   device.add(parts.flexMain, parts.flexSensor);
 }
 
-// ── Logic Board (PCB) ──
+// ── Logic Board (PCB) + Dense Traces (Phase 4B) ──
 {
-  const boardGeo = roundedBoxGeo(0.7, 0.38, 0.015, 0.03);
-  parts.board = new THREE.Mesh(boardGeo, pcbMat);
+  parts.board = new THREE.Mesh(roundedBoxGeo(0.7, 0.38, 0.015, 0.03), pcbMat);
   parts.board.rotation.x = Math.PI / 2;
   parts.board.position.set(0, 0.02, 0);
   device.add(parts.board);
 
-  // Gold traces on the board
   const traceGroup = new THREE.Group();
-  const traceW = [0.5, 0.35, 0.6, 0.28, 0.45];
-  const traceZ = [-0.1, -0.04, 0.02, 0.08, 0.13];
-  traceW.forEach((tw, i) => {
-    const tGeo = new THREE.BoxGeometry(tw, 0.001, 0.003);
-    const tr = new THREE.Mesh(tGeo, goldTraceMat);
-    tr.position.set((i % 2 ? 0.02 : -0.03), 0.03, traceZ[i]);
+  // Horizontal traces — 20+
+  const hTraces = [
+    { w: 0.5, z: -0.14, x: 0.02 }, { w: 0.35, z: -0.1, x: -0.05 },
+    { w: 0.6, z: -0.06, x: 0.01 }, { w: 0.28, z: -0.02, x: 0.08 },
+    { w: 0.45, z: 0.02, x: -0.03 }, { w: 0.55, z: 0.06, x: 0.02 },
+    { w: 0.3, z: 0.1, x: -0.06 }, { w: 0.48, z: 0.14, x: 0.04 },
+    { w: 0.22, z: -0.12, x: 0.15 }, { w: 0.38, z: 0.0, x: -0.1 },
+    { w: 0.42, z: 0.04, x: 0.12 }, { w: 0.25, z: 0.08, x: -0.14 },
+    { w: 0.5, z: -0.08, x: 0.0 }, { w: 0.18, z: 0.12, x: 0.1 },
+    { w: 0.32, z: -0.04, x: -0.08 }, { w: 0.4, z: 0.16, x: 0.0 },
+    { w: 0.28, z: -0.16, x: 0.05 }, { w: 0.35, z: 0.05, x: -0.12 },
+    { w: 0.2, z: -0.01, x: 0.18 }, { w: 0.44, z: 0.09, x: -0.02 },
+  ];
+  hTraces.forEach(t => {
+    const tr = new THREE.Mesh(new THREE.BoxGeometry(t.w, 0.001, 0.003), goldTraceMat);
+    tr.position.set(t.x, 0.03, t.z);
     traceGroup.add(tr);
   });
-  // Vertical traces
-  for (let i = 0; i < 4; i++) {
-    const tGeo = new THREE.BoxGeometry(0.003, 0.001, 0.2 + i * 0.04);
-    const tr = new THREE.Mesh(tGeo, goldTraceMat);
-    tr.position.set(-0.2 + i * 0.14, 0.03, 0.02);
+  // Vertical traces — 12+
+  for (let i = 0; i < 12; i++) {
+    const h = 0.12 + Math.random() * 0.18;
+    const tr = new THREE.Mesh(new THREE.BoxGeometry(0.003, 0.001, h), goldTraceMat);
+    tr.position.set(-0.28 + i * 0.05 + (Math.random() - 0.5) * 0.02, 0.03, (Math.random() - 0.5) * 0.2);
+    traceGroup.add(tr);
+  }
+  // Diagonal traces
+  for (let i = 0; i < 6; i++) {
+    const tr = new THREE.Mesh(new THREE.BoxGeometry(0.15 + Math.random() * 0.1, 0.001, 0.003), goldTraceMat);
+    tr.position.set((Math.random() - 0.5) * 0.4, 0.03, (Math.random() - 0.5) * 0.2);
+    tr.rotation.y = (Math.random() - 0.5) * 0.8;
     traceGroup.add(tr);
   }
   parts.traces = traceGroup;
   device.add(traceGroup);
 }
 
+// ── Phase 4A — SMD Capacitors (InstancedMesh) ──
+{
+  const smdGeo = new THREE.BoxGeometry(0.012, 0.006, 0.005);
+  const smdMesh = new THREE.InstancedMesh(smdGeo, smdMat, smdCount);
+  const dummy = new THREE.Object3D();
+  for (let i = 0; i < smdCount; i++) {
+    dummy.position.set(
+      (Math.random() - 0.5) * 0.6,
+      0.035 + Math.random() * 0.003,
+      (Math.random() - 0.5) * 0.32
+    );
+    dummy.rotation.set(0, Math.random() * Math.PI, 0);
+    dummy.scale.setScalar(0.8 + Math.random() * 0.4);
+    dummy.updateMatrix();
+    smdMesh.setMatrixAt(i, dummy.matrix);
+  }
+  smdMesh.instanceMatrix.needsUpdate = true;
+  parts.smdComponents = smdMesh;
+  device.add(smdMesh);
+}
+
+// ── Phase 4A — SMD Resistors (InstancedMesh) ──
+{
+  const resGeo = new THREE.BoxGeometry(0.01, 0.004, 0.005);
+  const resMesh = new THREE.InstancedMesh(resGeo, resMat, resCount);
+  const dummy = new THREE.Object3D();
+  for (let i = 0; i < resCount; i++) {
+    dummy.position.set(
+      (Math.random() - 0.5) * 0.58,
+      0.034 + Math.random() * 0.003,
+      (Math.random() - 0.5) * 0.3
+    );
+    dummy.rotation.set(0, Math.random() * Math.PI, 0);
+    dummy.scale.setScalar(0.7 + Math.random() * 0.5);
+    dummy.updateMatrix();
+    resMesh.setMatrixAt(i, dummy.matrix);
+  }
+  resMesh.instanceMatrix.needsUpdate = true;
+  parts.resistors = resMesh;
+  device.add(resMesh);
+}
+
+// ── Phase 4A — Solder Pads (InstancedMesh) ──
+{
+  const padGeo = new THREE.CylinderGeometry(0.004, 0.004, 0.001, 8);
+  const padMesh = new THREE.InstancedMesh(padGeo, solderPadMat, padCount);
+  const dummy = new THREE.Object3D();
+  for (let i = 0; i < padCount; i++) {
+    dummy.position.set(
+      (Math.random() - 0.5) * 0.62,
+      0.031,
+      (Math.random() - 0.5) * 0.34
+    );
+    dummy.updateMatrix();
+    padMesh.setMatrixAt(i, dummy.matrix);
+  }
+  padMesh.instanceMatrix.needsUpdate = true;
+  parts.solderPads = padMesh;
+  device.add(padMesh);
+}
+
 // ── Neural Chip ──
 {
-  const chipGeo = roundedBoxGeo(0.12, 0.12, 0.018, 0.01);
-  const chipBase = new THREE.Mesh(chipGeo, chipMat);
+  const chipBase = new THREE.Mesh(roundedBoxGeo(0.12, 0.12, 0.018, 0.01), chipMat);
   chipBase.rotation.x = Math.PI / 2;
-
-  const topGeo = roundedBoxGeo(0.09, 0.09, 0.005, 0.008);
-  const chipTop = new THREE.Mesh(topGeo, chipTopMat);
+  const chipTop = new THREE.Mesh(roundedBoxGeo(0.09, 0.09, 0.005, 0.008), chipTopMat);
   chipTop.rotation.x = Math.PI / 2;
   chipTop.position.y = 0.012;
-
   const neuralGroup = new THREE.Group();
   neuralGroup.add(chipBase, chipTop);
   neuralGroup.position.set(-0.08, 0.04, -0.02);
@@ -527,10 +723,33 @@ device.add(parts.innerGlowSphere);
   device.add(neuralGroup);
 }
 
+// ── Phase 4C — BGA Pads Under Neural Chip ──
+{
+  const bgaGeo = new THREE.SphereGeometry(0.002, 6, 4);
+  const bgaCount = bgaGridSize * bgaGridSize;
+  const bgaMesh = new THREE.InstancedMesh(bgaGeo, bgaPadMat, bgaCount);
+  const dummy = new THREE.Object3D();
+  const spacing = 0.012;
+  let idx = 0;
+  for (let row = 0; row < bgaGridSize; row++) {
+    for (let col = 0; col < bgaGridSize; col++) {
+      dummy.position.set(
+        -0.08 + (col - bgaGridSize / 2) * spacing,
+        0.035,
+        -0.02 + (row - bgaGridSize / 2) * spacing
+      );
+      dummy.updateMatrix();
+      bgaMesh.setMatrixAt(idx++, dummy.matrix);
+    }
+  }
+  bgaMesh.instanceMatrix.needsUpdate = true;
+  parts.bgaPads = bgaMesh;
+  device.add(bgaMesh);
+}
+
 // ── Memory Chip ──
 {
-  const memGeo = roundedBoxGeo(0.1, 0.06, 0.012, 0.006);
-  parts.memory = new THREE.Mesh(memGeo, chipMat);
+  parts.memory = new THREE.Mesh(roundedBoxGeo(0.1, 0.06, 0.012, 0.006), chipMat);
   parts.memory.rotation.x = Math.PI / 2;
   parts.memory.position.set(0.12, 0.04, 0.06);
   device.add(parts.memory);
@@ -538,8 +757,7 @@ device.add(parts.innerGlowSphere);
 
 // ── Wireless Module ──
 {
-  const wirGeo = roundedBoxGeo(0.07, 0.05, 0.01, 0.005);
-  parts.wireless = new THREE.Mesh(wirGeo, chipMat);
+  parts.wireless = new THREE.Mesh(roundedBoxGeo(0.07, 0.05, 0.01, 0.005), chipMat);
   parts.wireless.rotation.x = Math.PI / 2;
   parts.wireless.position.set(-0.22, 0.035, 0.1);
   device.add(parts.wireless);
@@ -547,8 +765,7 @@ device.add(parts.innerGlowSphere);
 
 // ── Thermal / Heat Spreader ──
 {
-  const thermalGeo = roundedBoxGeo(0.16, 0.14, 0.006, 0.01);
-  parts.thermal = new THREE.Mesh(thermalGeo, copperMat);
+  parts.thermal = new THREE.Mesh(roundedBoxGeo(0.16, 0.14, 0.006, 0.01), copperMat);
   parts.thermal.rotation.x = Math.PI / 2;
   parts.thermal.position.set(-0.08, 0.065, -0.02);
   device.add(parts.thermal);
@@ -557,18 +774,12 @@ device.add(parts.innerGlowSphere);
 // ── Camera Module ──
 {
   const camGroup = new THREE.Group();
-  const housingGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.035, 32);
-  const housing = new THREE.Mesh(housingGeo, cameraMat);
-
-  const lensGeo = new THREE.SphereGeometry(0.028, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
-  const lens = new THREE.Mesh(lensGeo, lensMat);
+  const housing = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.035, 32), cameraMat);
+  const lens = new THREE.Mesh(new THREE.SphereGeometry(0.028, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), lensMat);
   lens.position.y = 0.017;
-
-  const ringGeo = new THREE.TorusGeometry(0.038, 0.003, 8, 32);
-  const ring = new THREE.Mesh(ringGeo, hapticMat);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.038, 0.003, 8, 32), hapticMat);
   ring.rotation.x = Math.PI / 2;
   ring.position.y = 0.017;
-
   camGroup.add(housing, lens, ring);
   camGroup.rotation.x = Math.PI / 2;
   camGroup.position.set(0.25, 0.04, -0.08);
@@ -579,13 +790,8 @@ device.add(parts.innerGlowSphere);
 // ── Microphone Array ──
 {
   const micGroup = new THREE.Group();
-  const micPositions = [
-    [0, 0], [0.018, 0.01], [-0.018, 0.01],
-    [0.018, -0.01], [-0.018, -0.01], [0, -0.02]
-  ];
-  micPositions.forEach(([x, z]) => {
-    const mGeo = new THREE.CylinderGeometry(0.006, 0.006, 0.015, 12);
-    const mic = new THREE.Mesh(mGeo, cameraMat);
+  [[0,0],[0.018,0.01],[-0.018,0.01],[0.018,-0.01],[-0.018,-0.01],[0,-0.02]].forEach(([x,z]) => {
+    const mic = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.015, 12), cameraMat);
     mic.position.set(x, 0, z);
     micGroup.add(mic);
   });
@@ -597,51 +803,58 @@ device.add(parts.innerGlowSphere);
 // ── Speaker ──
 {
   const spkGroup = new THREE.Group();
-  const coneGeo = new THREE.CylinderGeometry(0.015, 0.035, 0.02, 24);
-  const cone = new THREE.Mesh(coneGeo, speakerMat);
-
-  const domeGeo = new THREE.SphereGeometry(0.015, 16, 8);
-  const dome = new THREE.Mesh(domeGeo, speakerMat);
+  spkGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.035, 0.02, 24), speakerMat));
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.015, 16, 8), speakerMat);
   dome.position.y = 0.01;
-
-  const magGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.015, 16);
-  const mag = new THREE.Mesh(magGeo, hapticMat);
+  spkGroup.add(dome);
+  const mag = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.015, 16), hapticMat);
   mag.position.y = -0.018;
-
-  spkGroup.add(cone, dome, mag);
+  spkGroup.add(mag);
   spkGroup.position.set(0.18, 0.03, 0.14);
   parts.speaker = spkGroup;
   device.add(spkGroup);
 }
 
-// ── LiDAR / Depth Sensor ──
+// ── LiDAR / Depth Sensor (Phase 5C pulsing emitter) ──
 {
   const lidarGroup = new THREE.Group();
-  // Emitter
-  const emGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.02, 16);
-  const emitter = new THREE.Mesh(emGeo, new THREE.MeshStandardMaterial({
-    color: 0x200020, roughness: 0.3, metalness: 0.5,
-    emissive: 0x3a0060, emissiveIntensity: 0.3
-  }));
-  // Receiver
-  const rcGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.018, 16);
-  const receiver = new THREE.Mesh(rcGeo, cameraMat);
+  const emitter = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.02, 16), lidarEmitterMat);
+  const receiver = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.018, 16), cameraMat);
   receiver.position.x = 0.035;
-
   lidarGroup.add(emitter, receiver);
   lidarGroup.position.set(0.22, 0.04, 0.12);
   parts.lidar = lidarGroup;
   device.add(lidarGroup);
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   5.  AMBIENT PARTICLES
-   ═══════════════════════════════════════════════════════════════ */
+// ── Phase 4D — Connector Ports ──
 {
-  const PCOUNT = isMobile ? 600 : 1800;
-  const pPos = new Float32Array(PCOUNT * 3);
-  const pSizes = new Float32Array(PCOUNT);
-  for (let i = 0; i < PCOUNT; i++) {
+  const connGroup = new THREE.Group();
+  // USB-C port
+  const port = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.008, 0.012), portMat);
+  port.position.set(0, -0.01, RY * 0.72);
+  connGroup.add(port);
+  // Gold contact pins inside port
+  const pinGeo = new THREE.BoxGeometry(0.002, 0.003, 0.008);
+  for (let i = 0; i < 6; i++) {
+    const pin = new THREE.Mesh(pinGeo, goldTraceMat);
+    pin.position.set(-0.01 + i * 0.004, -0.01, RY * 0.72);
+    connGroup.add(pin);
+  }
+  parts.connectors = connGroup;
+  device.add(connGroup);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   5.  AMBIENT PARTICLES + INNER PARTICLES (Phase 6)
+   ═══════════════════════════════════════════════════════════════ */
+
+// Ambient (background) particles
+let ambientParticleMat;
+{
+  const pPos = new Float32Array(ambientParticleCount * 3);
+  const pSizes = new Float32Array(ambientParticleCount);
+  for (let i = 0; i < ambientParticleCount; i++) {
     pPos[i * 3]     = (Math.random() - 0.5) * 12;
     pPos[i * 3 + 1] = (Math.random() - 0.5) * 8;
     pPos[i * 3 + 2] = (Math.random() - 0.5) * 12;
@@ -651,7 +864,7 @@ device.add(parts.innerGlowSphere);
   pGeo.setAttribute('position', new THREE.Float32BufferAttribute(pPos, 3));
   pGeo.setAttribute('size', new THREE.Float32BufferAttribute(pSizes, 1));
 
-  const pMat = new THREE.ShaderMaterial({
+  ambientParticleMat = new THREE.ShaderMaterial({
     transparent: true, depthWrite: false,
     uniforms: {
       uTime: { value: 0 },
@@ -684,25 +897,135 @@ device.add(parts.innerGlowSphere);
       }
     `
   });
-  const particleSystem = new THREE.Points(pGeo, pMat);
-  scene.add(particleSystem);
+  scene.add(new THREE.Points(pGeo, ambientParticleMat));
+}
+
+// Inner particles (Phase 6A — device-centred, activated on shell open)
+let innerParticleMat;
+{
+  const iPos = new Float32Array(innerParticleCount * 3);
+  const iSizes = new Float32Array(innerParticleCount);
+  for (let i = 0; i < innerParticleCount; i++) {
+    iPos[i * 3]     = (Math.random() - 0.5) * 2.0;
+    iPos[i * 3 + 1] = (Math.random() - 0.5) * 2.0;
+    iPos[i * 3 + 2] = (Math.random() - 0.5) * 2.0;
+    iSizes[i] = Math.random() * 1.5 + 0.3;
+  }
+  const iGeo = new THREE.BufferGeometry();
+  iGeo.setAttribute('position', new THREE.Float32BufferAttribute(iPos, 3));
+  iGeo.setAttribute('size', new THREE.Float32BufferAttribute(iSizes, 1));
+
+  innerParticleMat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false,
+    uniforms: {
+      uTime: { value: 0 },
+      uOpacity: { value: 0.0 },
+      uColor: { value: new THREE.Color(0xa78bfa) },
+    },
+    vertexShader: `
+      attribute float size;
+      uniform float uTime;
+      varying float vAlpha;
+      void main() {
+        vec3 p = position;
+        float angle = uTime * 0.3 + position.y * 2.0;
+        p.x += sin(angle) * 0.08;
+        p.z += cos(angle) * 0.08;
+        p.y += sin(uTime * 0.2 + position.x) * 0.12;
+        vec4 mv = modelViewMatrix * vec4(p, 1.0);
+        gl_Position = projectionMatrix * mv;
+        gl_PointSize = size * (150.0 / -mv.z);
+        vAlpha = smoothstep(5.0, 0.5, -mv.z);
+      }
+    `,
+    fragmentShader: `
+      uniform float uOpacity;
+      uniform vec3 uColor;
+      varying float vAlpha;
+      void main() {
+        float d = length(gl_PointCoord - 0.5);
+        if (d > 0.5) discard;
+        float a = smoothstep(0.5, 0.0, d) * uOpacity * vAlpha;
+        gl_FragColor = vec4(uColor, a);
+      }
+    `
+  });
+  scene.add(new THREE.Points(iGeo, innerParticleMat));
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   6.  POST-PROCESSING
+   6.  POST-PROCESSING (Phase 3)
    ═══════════════════════════════════════════════════════════════ */
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
 
+// Phase 3E — Tuned bloom
 const bloomPass = new UnrealBloomPass(
   new THREE.Vector2(W, H),
-  isMobile ? 0.3 : 0.5,  // strength
-  0.6,                     // radius
-  0.7                      // threshold
+  isMobile ? 0.25 : 0.4,
+  0.4,
+  0.85
 );
 composer.addPass(bloomPass);
 
-// Vignette
+// Phase 3C — Chromatic aberration
+const chromaticAberrationShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    uIntensity: { value: 0.0015 },
+    uDirection: { value: new THREE.Vector2(1.0, 0.0) },
+  },
+  vertexShader: `varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform float uIntensity;
+    uniform vec2 uDirection;
+    varying vec2 vUv;
+    void main(){
+      vec2 offset = uIntensity * uDirection;
+      float dist = length(vUv - 0.5) * 2.0;
+      offset *= dist * dist;
+      float r = texture2D(tDiffuse, vUv + offset).r;
+      float g = texture2D(tDiffuse, vUv).g;
+      float b = texture2D(tDiffuse, vUv - offset).b;
+      float a = texture2D(tDiffuse, vUv).a;
+      gl_FragColor = vec4(r, g, b, a);
+    }
+  `
+};
+const chromaticPass = new ShaderPass(chromaticAberrationShader);
+if (QUALITY !== 'low') composer.addPass(chromaticPass);
+
+// Phase 3D — Film grain
+const filmGrainShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    uTime: { value: 0 },
+    uIntensity: { value: 0.04 },
+  },
+  vertexShader: `varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform float uTime;
+    uniform float uIntensity;
+    varying vec2 vUv;
+    float hash(vec2 p){
+      vec3 p3=fract(vec3(p.xyx)*0.1031);
+      p3+=dot(p3,p3.yzx+33.33);
+      return fract((p3.x+p3.y)*p3.z);
+    }
+    void main(){
+      vec4 color=texture2D(tDiffuse,vUv);
+      float noise=hash(vUv*1000.0+uTime*100.0)*2.0-1.0;
+      color.rgb+=noise*uIntensity;
+      gl_FragColor=color;
+    }
+  `
+};
+const grainPass = new ShaderPass(filmGrainShader);
+if (QUALITY !== 'low') composer.addPass(grainPass);
+
+// Phase 3E — Enhanced vignette with purple tint
 const vignetteShader = {
   uniforms: {
     tDiffuse: { value: null },
@@ -718,21 +1041,21 @@ const vignetteShader = {
     void main(){
       vec4 c=texture2D(tDiffuse,vUv);
       float d=distance(vUv,vec2(0.5));
-      c.rgb*=smoothstep(0.8,uOffset*0.5,d*(uDarkness+uOffset));
+      float vignette=smoothstep(0.8,uOffset*0.5,d*(uDarkness+uOffset));
+      vec3 tint=mix(vec3(0.02,0.01,0.04),vec3(1.0),vignette);
+      c.rgb*=tint;
+      c.rgb*=vignette;
       gl_FragColor=c;
     }
   `
 };
 composer.addPass(new ShaderPass(vignetteShader));
 
-if (!isMobile) {
-  composer.addPass(new SMAAPass(W, H));
-}
-
+if (!isMobile) composer.addPass(new SMAAPass(W, H));
 composer.addPass(new OutputPass());
 
 /* ═══════════════════════════════════════════════════════════════
-   7.  STORE ASSEMBLED (REST) POSITIONS
+   7.  STORE REST POSITIONS
    ═══════════════════════════════════════════════════════════════ */
 const restState = {};
 Object.entries(parts).forEach(([key, obj]) => {
@@ -743,8 +1066,11 @@ Object.entries(parts).forEach(([key, obj]) => {
 });
 
 /* ═══════════════════════════════════════════════════════════════
-   8.  LABEL SYSTEM
+   8.  LABEL SYSTEM (Phase 9A — SVG connectors)
    ═══════════════════════════════════════════════════════════════ */
+const svgNS = 'http://www.w3.org/2000/svg';
+const linesSvg = document.getElementById('label-lines');
+
 const labelMap = {
   antenna:  { el: document.getElementById('lbl-antenna'),  obj: parts.antenna },
   hapticL:  { el: document.getElementById('lbl-hapticL'),  obj: parts.hapticL },
@@ -767,30 +1093,61 @@ Object.keys(labelMap).forEach(k => labelVisibility[k] = 0);
 
 const _projVec = new THREE.Vector3();
 function updateLabels() {
+  // Clear SVG lines
+  while (linesSvg.firstChild) linesSvg.removeChild(linesSvg.firstChild);
+
   Object.entries(labelMap).forEach(([key, { el, obj }]) => {
     const vis = labelVisibility[key] || 0;
     if (vis < 0.01) { el.style.opacity = '0'; return; }
 
-    // Get world position
     obj.updateWorldMatrix(true, false);
     _projVec.setFromMatrixPosition(obj.matrixWorld);
     _projVec.project(camera);
 
-    // Behind camera check
     if (_projVec.z > 1) { el.style.opacity = '0'; return; }
 
     const x = (_projVec.x * 0.5 + 0.5) * W;
     const y = (-_projVec.y * 0.5 + 0.5) * H;
-    el.style.transform = `translate(${x}px, ${y - 20}px)`;
+
+    const labelX = x;
+    const labelY = y - 30;
+    el.style.transform = `translate(${labelX}px, ${labelY}px)`;
     el.style.opacity = String(vis);
+
+    // SVG connector line
+    if (vis > 0.1) {
+      const line = document.createElementNS(svgNS, 'line');
+      line.setAttribute('x1', String(x));
+      line.setAttribute('y1', String(y));
+      line.setAttribute('x2', String(labelX));
+      line.setAttribute('y2', String(labelY + 12));
+      line.setAttribute('stroke', `rgba(167,139,250,${vis * 0.4})`);
+      line.setAttribute('stroke-width', '1');
+      line.setAttribute('stroke-dasharray', '2,3');
+      linesSvg.appendChild(line);
+    }
   });
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   9.  SCROLL ANIMATIONS (GSAP)
+   9.  CAMERA SPLINE PATH (Phase 8)
    ═══════════════════════════════════════════════════════════════ */
+const cameraPath = new THREE.CatmullRomCurve3([
+  new THREE.Vector3(0, 0.3, 3.8),
+  new THREE.Vector3(1.5, 0.6, 3.0),
+  new THREE.Vector3(2.2, 0.4, 2.0),
+  new THREE.Vector3(-1.8, -0.3, 2.5),
+  new THREE.Vector3(0.5, 1.5, 2.8),
+  new THREE.Vector3(1.8, 0.3, 2.5),
+  new THREE.Vector3(0, 0.6, 4.5),
+  new THREE.Vector3(0, 0.3, 3.8),
+], false, 'catmullrom', 0.5);
 
-// Scroll-tracked progress (0 → 1)
+const cameraProxy = { progress: 0 };
+
+/* ═══════════════════════════════════════════════════════════════
+   10. SCROLL ANIMATIONS (GSAP)
+   ═══════════════════════════════════════════════════════════════ */
 let scrollProgress = 0;
 
 const masterTL = G.timeline({
@@ -803,19 +1160,38 @@ const masterTL = G.timeline({
   }
 });
 
-// Helper: total timeline "units" = 100
-// Hero: 0-8  |  Shell: 8-22  |  Connect: 22-35  |  Power: 35-48
-// Brain: 48-65  |  Senses: 65-78  |  Full: 78-92  |  Reassemble: 92-100
+// Phase 8 — Camera follows spline
+masterTL.to(cameraProxy, { progress: 1, duration: 100, ease: 'none' }, 0);
 
-/* ── Camera choreography ── */
+// Phase 1B — Animate lighting intensity with scroll
 masterTL
-  .to(camera.position, { x: 1.5, y: 0.6, z: 3.0, duration: 14, ease: 'power2.inOut' }, 8)
-  .to(camera.position, { x: 2.0, y: 0.4, z: 2.2, duration: 13, ease: 'power2.inOut' }, 22)
-  .to(camera.position, { x: -1.8, y: -0.3, z: 2.5, duration: 13, ease: 'power2.inOut' }, 35)
-  .to(camera.position, { x: 0.5, y: 1.5, z: 2.8, duration: 17, ease: 'power2.inOut' }, 48)
-  .to(camera.position, { x: 1.8, y: 0.3, z: 2.5, duration: 13, ease: 'power2.inOut' }, 65)
-  .to(camera.position, { x: 0, y: 0.6, z: 4.5, duration: 14, ease: 'power2.inOut' }, 78)
-  .to(camera.position, { x: 0, y: 0.3, z: 3.8, duration: 8, ease: 'power2.inOut' }, 92);
+  .to(keyRect, { intensity: 5, duration: 10 }, 10)    // dim during shell open
+  .to(rimRect, { intensity: 8, duration: 10 }, 10)     // dramatic rim
+  .to(keyRect, { intensity: 6, duration: 15 }, 48)     // even for brain
+  .to(fillRect, { intensity: 4, duration: 15 }, 48)
+  .to(rimRect, { intensity: 3, duration: 15 }, 48)
+  .to(keyRect, { intensity: 8, duration: 8 }, 92)      // return to hero
+  .to(fillRect, { intensity: 3, duration: 8 }, 92)
+  .to(rimRect, { intensity: 5, duration: 8 }, 92);
+
+// Phase 5A — Fresnel glow follows shell open
+const fresnelProxy = { intensity: 0 };
+masterTL
+  .to(fresnelProxy, { intensity: 0.6, duration: 10 }, 10)
+  .to(fresnelProxy, { intensity: 0, duration: 6 }, 93);
+
+// Phase 5B — Gold trace data flow
+const flowProxy = { intensity: 0 };
+masterTL
+  .to(flowProxy, { intensity: 1.0, duration: 10 }, 50)
+  .to(flowProxy, { intensity: 0, duration: 6 }, 93);
+
+// Phase 6A — Inner particle opacity
+const innerPProxy = { opacity: 0 };
+masterTL
+  .to(innerPProxy, { opacity: 0.5, duration: 8 }, 10)
+  .to(innerPProxy, { opacity: 0.7, duration: 10 }, 78)
+  .to(innerPProxy, { opacity: 0, duration: 6 }, 92);
 
 /* ── Shell separates ── */
 masterTL
@@ -823,32 +1199,28 @@ masterTL
   .to(parts.shellBottom.position, { y: -0.8, duration: 12, ease: 'power3.inOut' }, 10)
   .to(parts.shellRimTop.position, { y: 0.8, duration: 12, ease: 'power3.inOut' }, 10)
   .to(parts.shellRimBottom.position, { y: -0.8, duration: 12, ease: 'power3.inOut' }, 10)
-  // Inner glow fades in
   .to(innerGlow, { intensity: 3, duration: 8 }, 12)
   .to(glowMat, { opacity: 0.15, duration: 8 }, 12);
 
-/* ── Layer 1 — Antenna + Haptics (section 2) ── */
+/* ── Layer 1 — Antenna + Haptics ── */
 masterTL
   .to(parts.antenna.position, { y: 0.5, duration: 10, ease: 'power2.out' }, 24)
   .to(parts.antenna.rotation, { y: Math.PI * 0.5, duration: 10 }, 24)
   .to(parts.hapticL.position, { x: -1.0, y: 0.1, z: 0.2, duration: 10, ease: 'power2.out' }, 26)
   .to(parts.hapticR.position, { x: 1.0, y: 0.1, z: 0.2, duration: 10, ease: 'power2.out' }, 26)
-  // Labels
   .to(labelVisibility, { antenna: 1, duration: 4 }, 27)
   .to(labelVisibility, { hapticL: 1, hapticR: 1, duration: 4 }, 28);
 
-/* ── Layer 2 — Battery + Cables (section 3) ── */
+/* ── Layer 2 — Battery + Cables ── */
 masterTL
   .to(parts.battery.position, { y: -0.5, z: -0.6, duration: 10, ease: 'power2.out' }, 37)
   .to(parts.battery.rotation, { z: 0.15, duration: 10 }, 37)
   .to(parts.flexMain.position, { x: 0.5, y: 0.3, z: -0.4, duration: 10 }, 38)
   .to(parts.flexSensor.position, { x: -0.4, y: 0.2, z: -0.35, duration: 10 }, 39)
-  // Labels
   .to(labelVisibility, { battery: 1, flex: 1, duration: 4 }, 40)
-  // Fade previous labels
   .to(labelVisibility, { antenna: 0.3, hapticL: 0.3, hapticR: 0.3, duration: 6 }, 38);
 
-/* ── Layer 3 — Brain (section 4) ── */
+/* ── Layer 3 — Brain ── */
 masterTL
   .to(parts.board.position, { y: 0.1, z: 0.15, duration: 10 }, 50)
   .to(parts.traces.position, { y: 0.1, z: 0.15, duration: 10 }, 50)
@@ -857,22 +1229,20 @@ masterTL
   .to(parts.memory.position, { x: 0.4, y: 0.45, z: 0.45, duration: 10 }, 53)
   .to(parts.wireless.position, { x: -0.55, y: 0.35, z: 0.4, duration: 10 }, 54)
   .to(parts.thermal.position, { x: -0.3, y: 0.75, z: 0.35, duration: 10 }, 51)
-  // Labels
   .to(labelVisibility, { board: 1, neural: 1, memory: 1, wireless: 1, thermal: 1, duration: 5 }, 55)
   .to(labelVisibility, { battery: 0.2, flex: 0.2, duration: 6 }, 52);
 
-/* ── Layer 4 — Senses (section 5) ── */
+/* ── Layer 4 — Senses ── */
 masterTL
   .to(parts.camera.position, { x: 0.7, y: 0.25, z: 0.6, duration: 10, ease: 'power2.out' }, 67)
   .to(parts.camera.rotation, { x: Math.PI / 2, z: 0.3, duration: 10 }, 67)
   .to(parts.mic.position, { x: -0.6, y: 0.15, z: 0.55, duration: 10 }, 68)
   .to(parts.speaker.position, { x: 0.5, y: -0.2, z: 0.65, duration: 10 }, 69)
   .to(parts.lidar.position, { x: 0.65, y: 0.5, z: -0.3, duration: 10 }, 68)
-  // Labels
   .to(labelVisibility, { camera: 1, mic: 1, speaker: 1, lidar: 1, duration: 5 }, 70)
   .to(labelVisibility, { board: 0.3, neural: 0.5, memory: 0.3, wireless: 0.2, thermal: 0.2, duration: 6 }, 68);
 
-/* ── Full Explode (section 6) — push everything further ── */
+/* ── Full Explode ── */
 masterTL
   .to(parts.shellTop.position, { y: 1.6, duration: 10 }, 80)
   .to(parts.shellBottom.position, { y: -1.6, duration: 10 }, 80)
@@ -886,22 +1256,16 @@ masterTL
   .to(parts.thermal.position, { y: 1.05, duration: 10 }, 80)
   .to(parts.camera.position, { x: 1.0, z: 0.85, duration: 10 }, 80)
   .to(parts.lidar.position, { x: 0.9, y: 0.75, duration: 10 }, 80)
-  // All labels visible
   .to(labelVisibility, {
     antenna: 1, hapticL: 0.7, hapticR: 0.7, battery: 1, flex: 0.7,
     board: 1, neural: 1, memory: 1, wireless: 0.7, thermal: 0.8,
     camera: 1, mic: 0.8, speaker: 0.8, lidar: 1, duration: 6
   }, 82);
 
-/* ── Reassemble (section 7) ── */
-const reassembleTarget = {};
+/* ── Reassemble ── */
 Object.entries(parts).forEach(([key, obj]) => {
-  if (key === 'innerGlowSphere') return;
-  reassembleTarget[key] = { x: restState[key].px, y: restState[key].py, z: restState[key].pz };
-});
-
-Object.entries(parts).forEach(([key, obj]) => {
-  if (key === 'innerGlowSphere' || key === 'traces') return;
+  if (key === 'innerGlowSphere' || key === 'traces' || key === 'smdComponents' ||
+      key === 'resistors' || key === 'solderPads' || key === 'bgaPads' || key === 'connectors') return;
   masterTL.to(obj.position, {
     x: restState[key].px, y: restState[key].py, z: restState[key].pz,
     duration: 8, ease: 'power3.inOut'
@@ -911,23 +1275,19 @@ Object.entries(parts).forEach(([key, obj]) => {
     duration: 8, ease: 'power3.inOut'
   }, 92);
 });
-// Traces follow board
 masterTL.to(parts.traces.position, {
   x: restState.traces.px, y: restState.traces.py, z: restState.traces.pz,
   duration: 8, ease: 'power3.inOut'
 }, 92);
 
-// Glow fades
 masterTL
   .to(innerGlow, { intensity: 0, duration: 6 }, 93)
-  .to(glowMat, { opacity: 0, duration: 6 }, 93);
-
-// All labels fade
-masterTL.to(labelVisibility, {
-  antenna: 0, hapticL: 0, hapticR: 0, battery: 0, flex: 0,
-  board: 0, neural: 0, memory: 0, wireless: 0, thermal: 0,
-  camera: 0, mic: 0, speaker: 0, lidar: 0, duration: 5
-}, 93);
+  .to(glowMat, { opacity: 0, duration: 6 }, 93)
+  .to(labelVisibility, {
+    antenna: 0, hapticL: 0, hapticR: 0, battery: 0, flex: 0,
+    board: 0, neural: 0, memory: 0, wireless: 0, thermal: 0,
+    camera: 0, mic: 0, speaker: 0, lidar: 0, duration: 5
+  }, 93);
 
 /* ── Text section animations ── */
 document.querySelectorAll('.section-content').forEach((el) => {
@@ -935,47 +1295,39 @@ document.querySelectorAll('.section-content').forEach((el) => {
     { opacity: 0, y: 60 },
     {
       opacity: 1, y: 0, duration: 1, ease: 'power2.out',
-      scrollTrigger: {
-        trigger: el, start: 'top 80%', end: 'top 30%',
-        scrub: 1, toggleActions: 'play none none reverse',
-      }
+      scrollTrigger: { trigger: el, start: 'top 80%', end: 'top 30%', scrub: 1 }
     }
   );
-  // Fade out as you scroll past
   G.to(el, {
     opacity: 0, y: -40,
-    scrollTrigger: {
-      trigger: el, start: 'bottom 60%', end: 'bottom 20%',
-      scrub: 1,
-    }
+    scrollTrigger: { trigger: el, start: 'bottom 60%', end: 'bottom 20%', scrub: 1 }
   });
 });
 
 /* ═══════════════════════════════════════════════════════════════
-   10.  SMOOTH SCROLL (LENIS)
+   11. SMOOTH SCROLL (LENIS)
    ═══════════════════════════════════════════════════════════════ */
 const lenis = new window.Lenis({
   duration: 1.4,
   easing: t => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
   touchMultiplier: 1.5,
 });
-
 lenis.on('scroll', ST.update);
 G.ticker.add((time) => { lenis.raf(time * 1000); });
 G.ticker.lagSmoothing(0);
 
 /* ═══════════════════════════════════════════════════════════════
-   11.  BACKGROUND GRADIENT SHIFT
+   12. BACKGROUND GRADIENT SHIFT
    ═══════════════════════════════════════════════════════════════ */
 const bgColors = [
-  new THREE.Color(0x050510), // hero - deep night
-  new THREE.Color(0x080818), // shell - slightly lighter
-  new THREE.Color(0x060612), // connect
-  new THREE.Color(0x0a0815), // power
-  new THREE.Color(0x0c0a18), // brain - warmer
-  new THREE.Color(0x080814), // senses
-  new THREE.Color(0x0a0a1a), // full explode
-  new THREE.Color(0x050510), // reassemble
+  new THREE.Color(0x050510),
+  new THREE.Color(0x080818),
+  new THREE.Color(0x060612),
+  new THREE.Color(0x0a0815),
+  new THREE.Color(0x0c0a18),
+  new THREE.Color(0x080814),
+  new THREE.Color(0x0a0a1a),
+  new THREE.Color(0x050510),
 ];
 
 function lerpBgColor(progress) {
@@ -990,37 +1342,76 @@ function lerpBgColor(progress) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   12.  SLOW IDLE ROTATION (DEVICE)
+   13. ANIMATION LOOP (Phase 7 — velocity effects)
    ═══════════════════════════════════════════════════════════════ */
 let idleRotY = 0;
-
-/* ═══════════════════════════════════════════════════════════════
-   13.  ANIMATION LOOP
-   ═══════════════════════════════════════════════════════════════ */
 const clock = new THREE.Clock();
+const scrollFillEl = document.getElementById('scroll-fill');
 
 function animate() {
   requestAnimationFrame(animate);
   const dt = clock.getDelta();
   const t = clock.getElapsedTime();
 
-  // Subtle device rotation (slows during explode)
-  const rotSpeed = scrollProgress < 0.08 ? 0.15 :
-                   scrollProgress > 0.92 ? 0.15 : 0.04;
+  // Idle rotation
+  const rotSpeed = scrollProgress < 0.08 ? 0.15 : scrollProgress > 0.92 ? 0.15 : 0.04;
   idleRotY += rotSpeed * dt;
   device.rotation.y = idleRotY;
 
-  // Camera always looks at device centre
+  // Phase 8 — Camera follows spline
+  const camPos = cameraPath.getPointAt(cameraProxy.progress);
+  camera.position.copy(camPos);
   camera.lookAt(0, 0, 0);
 
   // Background colour
   lerpBgColor(scrollProgress);
 
-  // Particle time
-  const pMat = scene.children.find(c => c instanceof THREE.Points)?.material;
-  if (pMat) pMat.uniforms.uTime.value = t;
+  // Phase 7 — Scroll velocity effects
+  const rawVelocity = Math.abs(lenis.velocity || 0);
+  const normVelocity = Math.min(rawVelocity / 2000, 1.0);
 
-  // Update labels
+  if (QUALITY !== 'low') {
+    chromaticPass.uniforms.uIntensity.value = THREE.MathUtils.lerp(
+      chromaticPass.uniforms.uIntensity.value,
+      0.0008 + normVelocity * 0.004, 0.1
+    );
+    grainPass.uniforms.uIntensity.value = THREE.MathUtils.lerp(
+      grainPass.uniforms.uIntensity.value,
+      0.03 + normVelocity * 0.03, 0.1
+    );
+    grainPass.uniforms.uTime.value = t;
+  }
+
+  bloomPass.strength = THREE.MathUtils.lerp(
+    bloomPass.strength,
+    (isMobile ? 0.25 : 0.4) + normVelocity * 0.15, 0.1
+  );
+
+  // Phase 5A — Fresnel glow
+  if (shellMat.userData.shader) {
+    shellMat.userData.shader.uniforms.uFresnelIntensity.value = fresnelProxy.intensity;
+  }
+
+  // Phase 5B — Gold trace data flow
+  if (goldTraceMat.userData.shader) {
+    goldTraceMat.userData.shader.uniforms.uTime.value = t;
+    goldTraceMat.userData.shader.uniforms.uFlowIntensity.value = flowProxy.intensity;
+  }
+
+  // Phase 5C — LiDAR pulse
+  lidarEmitterMat.emissiveIntensity = 0.3 + Math.sin(t * 4.0) * 0.5;
+
+  // Phase 6A — Inner particle opacity
+  innerParticleMat.uniforms.uOpacity.value = innerPProxy.opacity;
+  innerParticleMat.uniforms.uTime.value = t;
+
+  // Ambient particles
+  ambientParticleMat.uniforms.uTime.value = t;
+
+  // Phase 9B — Scroll progress indicator
+  scrollFillEl.style.height = `${scrollProgress * 100}%`;
+
+  // Labels
   updateLabels();
 
   // Render
@@ -1028,40 +1419,93 @@ function animate() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   14.  RESIZE
+   14. RESIZE (Phase 10B — debounced)
    ═══════════════════════════════════════════════════════════════ */
+let resizeTimeout;
 window.addEventListener('resize', () => {
-  W = window.innerWidth;
-  H = window.innerHeight;
-  camera.aspect = W / H;
-  camera.updateProjectionMatrix();
-  renderer.setSize(W, H);
-  composer.setSize(W, H);
-  bloomPass.resolution.set(W, H);
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(() => {
+    W = window.innerWidth;
+    H = window.innerHeight;
+    camera.aspect = W / H;
+    camera.updateProjectionMatrix();
+    renderer.setSize(W, H);
+    composer.setSize(W, H);
+    bloomPass.resolution.set(W, H);
+  }, 150);
 });
 
 /* ═══════════════════════════════════════════════════════════════
-   15.  LOADING
+   15. LOADING (Phase 9C — wireframe preview)
    ═══════════════════════════════════════════════════════════════ */
 const loaderEl = document.getElementById('loader');
 const loaderBar = document.getElementById('loader-bar');
+const loaderCanvas = document.getElementById('loader-canvas');
 
-// Simulate loading (we're procedural so it's fast)
-let loadProgress = 0;
-function tickLoader() {
-  loadProgress += (100 - loadProgress) * 0.08;
-  loaderBar.style.width = loadProgress + '%';
-  if (loadProgress < 99) {
-    requestAnimationFrame(tickLoader);
-  } else {
-    loaderBar.style.width = '100%';
-    setTimeout(() => {
-      loaderEl.classList.add('hidden');
-      animate();
-    }, 400);
+// Wireframe pod preview
+{
+  const lCtx = loaderCanvas.getContext('2d');
+  const lW = 160, lH = 160;
+  let lAngle = 0;
+
+  function drawLoaderFrame() {
+    lCtx.clearRect(0, 0, lW, lH);
+    lAngle += 0.02;
+
+    // Draw wireframe ellipse (simplified pod cross-section)
+    lCtx.strokeStyle = 'rgba(167, 139, 250, 0.4)';
+    lCtx.lineWidth = 1;
+
+    for (let ring = 0; ring < 6; ring++) {
+      const rFrac = ring / 5;
+      const rx = 50 * (1 - rFrac * 0.3);
+      const ry = 20 * (1 - rFrac * 0.3);
+      const yOff = (rFrac - 0.5) * 30;
+
+      lCtx.beginPath();
+      for (let i = 0; i <= 64; i++) {
+        const a = (i / 64) * Math.PI * 2;
+        const x = lW / 2 + Math.cos(a + lAngle) * rx;
+        const y = lH / 2 + yOff + Math.sin(a) * ry * Math.cos(lAngle * 0.5);
+        i === 0 ? lCtx.moveTo(x, y) : lCtx.lineTo(x, y);
+      }
+      lCtx.closePath();
+      lCtx.stroke();
+    }
+
+    // Meridian lines
+    for (let m = 0; m < 8; m++) {
+      const mAngle = (m / 8) * Math.PI * 2 + lAngle;
+      lCtx.beginPath();
+      for (let i = 0; i <= 32; i++) {
+        const t = (i / 32) * Math.PI - Math.PI / 2;
+        const x = lW / 2 + Math.cos(mAngle) * 50 * Math.cos(t);
+        const y = lH / 2 + 25 * Math.sin(t);
+        i === 0 ? lCtx.moveTo(x, y) : lCtx.lineTo(x, y);
+      }
+      lCtx.stroke();
+    }
   }
+
+  function tickLoader() {
+    loadProgress += (100 - loadProgress) * 0.06;
+    loaderBar.style.width = loadProgress + '%';
+    drawLoaderFrame();
+
+    if (loadProgress < 99) {
+      requestAnimationFrame(tickLoader);
+    } else {
+      loaderBar.style.width = '100%';
+      setTimeout(() => {
+        loaderEl.classList.add('hidden');
+        animate();
+      }, 400);
+    }
+  }
+
+  let loadProgress = 0;
+  tickLoader();
 }
-tickLoader();
 
 </script>
 </body>
