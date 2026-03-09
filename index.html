@@ -530,8 +530,8 @@ const device = new THREE.Group();
 scene.add(device);
 const parts = {};
 
-const RX = 0.72, RY = 0.42, RZ = 0.18;
-const E1 = 0.38, E2 = 0.52;
+const RX = 0.72, RY = 0.42, RZ = 0.13;  // thinner profile
+const E1 = 0.55, E2 = 0.85;             // rounder/more oval, tapered long edges
 
 // ── Shell ──
 parts.shellTop = new THREE.Mesh(createShellHalf(RX, RY, RZ, E1, E2, true, shellSegs), shellMat);
